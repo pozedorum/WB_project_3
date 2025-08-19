@@ -3,8 +3,8 @@ CREATE TABLE notifications (
     user_id VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     channel VARCHAR(50) NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'canceled')),
     send_at TIMESTAMP NOT NULL,
-    status VARCHAR(20) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );

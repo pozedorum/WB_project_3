@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/pozedorum/wbf/retry"
+)
 
 type Notification struct {
 	ID        string    `json:"id"`
@@ -26,3 +30,5 @@ type NotificationResponse struct {
 	SendAt  time.Time `json:"send_at"`
 	Message string    `json:"message"`
 }
+
+var StandartStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
