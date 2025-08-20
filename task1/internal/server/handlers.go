@@ -63,3 +63,10 @@ func (ns *NotificationServer) DeleteNotification(c *ginext.Context) {
 	}
 	c.JSON(http.StatusOK, ginext.H{"status": "canceled"})
 }
+
+func (ns *NotificationServer) HealthCheck(c *ginext.Context) {
+	c.JSON(http.StatusOK, ginext.H{
+		"status":  "ok",
+		"service": "notification-server",
+	})
+}

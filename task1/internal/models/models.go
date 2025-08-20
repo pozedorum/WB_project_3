@@ -32,3 +32,10 @@ type NotificationResponse struct {
 }
 
 var StandartStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
+
+const (
+	StatusPending  = "pending"
+	StatusSent     = "sent"
+	StatusFailed   = "failed"
+	StatusCanceled = "canceled"
+)

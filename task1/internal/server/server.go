@@ -20,9 +20,5 @@ func (ns *NotificationServer) SetupRoutes(router ginext.RouterGroup) {
 		notifyGroup.GET("/:id", ns.GetNotificationStatus)
 		notifyGroup.DELETE("/:id", ns.DeleteNotification)
 	}
-
-}
-
-func (ns *NotificationServer) Run() {
-
+	router.GET("/health", ns.HealthCheck)
 }
