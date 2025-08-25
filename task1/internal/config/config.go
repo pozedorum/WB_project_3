@@ -1,12 +1,13 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/pozedorum/wbf/zlog"
 )
 
 type Config struct {
@@ -32,6 +33,11 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+func (d DatabaseConfig) GetDSN() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode)
+}
+
 type RedisConfig struct {
 	Host     string
 	Port     string
@@ -46,11 +52,16 @@ type RabbitMQConfig struct {
 	Password string
 }
 
+func (r RabbitMQConfig) GetURL() string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%s/", r.User, r.Password, r.Host, r.Port)
+}
+
 type EmailConfig struct {
 	SMTPHost     string
 	SMTPPort     int
 	SMTPUser     string
 	SMTPPassword string
+	SMTPFrom     string
 }
 
 type TelegramConfig struct {
@@ -66,7 +77,7 @@ type RetryConfig struct {
 func Load() *Config {
 	// Загрузка .env файла
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		zlog.Logger.Info().Msg("No .env file found, using environment variables")
 	}
 
 	return &Config{
@@ -93,16 +104,16 @@ func Load() *Config {
 			User:     getEnv("RABBITMQ_USER", "guest"),
 			Password: getEnv("RABBITMQ_PASSWORD", "guest"),
 		},
-		// Пока не знаю, как именно буду передавать сообщения
-		// Email: EmailConfig{
-		// 	SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
-		// 	SMTPPort:     getEnvAsInt("SMTP_PORT", 587),
-		// 	SMTPUser:     getEnv("SMTP_USER", ""),
-		// 	SMTPPassword: getEnv("SMTP_PASSWORD", ""),
-		// },
-		// Telegram: TelegramConfig{
-		// 	BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
-		// },
+		Email: EmailConfig{
+			SMTPHost:     getEnv("SMTP_HOST", ""),
+			SMTPPort:     getEnvAsInt("SMTP_PORT", 587),
+			SMTPUser:     getEnv("SMTP_USER", ""),
+			SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+			SMTPFrom:     getEnv("SMTP_FROM", ""),
+		},
+		Telegram: TelegramConfig{
+			BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+		},
 		Retry: RetryConfig{
 			MaxRetries:  getEnvAsInt("MAX_RETRIES", 3),
 			BaseDelay:   getEnvAsDuration("BASE_DELAY", 1*time.Second),
@@ -111,7 +122,7 @@ func Load() *Config {
 	}
 }
 
-// Вспомогательные функции (остаются без изменений)
+// Вспомогательные функции
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value

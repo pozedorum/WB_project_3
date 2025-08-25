@@ -13,20 +13,21 @@ type Repository interface {
 	GetByID(ctx context.Context, id string) (*models.Notification, error)
 	UpdateNotificationStatus(ctx context.Context, id, status string) error
 	DeleteNotification(ctx context.Context, id string) error
-	GetPendingNotifications(ctx context.Context) ([]*models.Notification, error)
+	// GetPendingnotifications(ctx context.Context) ([]*models.Notification, error)
 }
 
 // Cache интерфейс для кэширования
 type Cache interface {
 	Set(ctx context.Context, key string, value interface{}) error
 	Get(ctx context.Context, key string) (*models.Notification, error)
-	Delete(ctx context.Context, key string) error
+	// Delete(ctx context.Context, key string) error
 }
 
 // Queue интерфейс для работы с очередями
 type Queue interface {
 	PublishWithDelay(ctx context.Context, queueName string, message interface{}, delay time.Duration) error
 	Consume(ctx context.Context, queueName string) (<-chan []byte, error)
+	Close() error
 }
 
 // Notifier интерфейс для отправки уведомлений

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/pozedorum/WB_project_3/task1/internal/models"
+	"github.com/pozedorum/wbf/zlog"
 )
 
 type NotificationService struct {
@@ -18,12 +18,7 @@ type NotificationService struct {
 	notifiers map[string]Notifier // map[channel]Notifier
 }
 
-func NewNotificationService(
-	repo Repository,
-	cache Cache,
-	queue Queue,
-	notifiers []Notifier,
-) *NotificationService {
+func NewNotificationService(repo Repository, cache Cache, queue Queue, notifiers []Notifier) *NotificationService {
 	notifierMap := make(map[string]Notifier)
 	for _, notifier := range notifiers {
 		notifierMap[notifier.GetChannel()] = notifier
@@ -67,14 +62,14 @@ func (s *NotificationService) Create(ctx context.Context, req *models.CreateNoti
 
 	// Кэшируем
 	if err := s.cache.Set(ctx, notification.ID, notification); err != nil {
-		log.Printf("Warning: failed to cache notification: %v", err)
+		zlog.Logger.Warn().Err(err).Str("notification_id", notification.ID).Msg("Failed to cache notification")
 	}
 
 	// Отправляем в очередь
 	if err := s.publishToQueue(ctx, notification); err != nil {
 		// Откатываем изменения при ошибке
 		if err := s.repo.UpdateNotificationStatus(ctx, notification.ID, models.StatusFailed); err != nil {
-			log.Printf("Failed to update status after queue error: %v", err)
+			zlog.Logger.Error().Err(err).Str("notification_id", notification.ID).Msg("Failed to update status after queue error")
 		}
 		return nil, fmt.Errorf("failed to publish to queue: %w", err)
 	}
@@ -85,6 +80,10 @@ func (s *NotificationService) Create(ctx context.Context, req *models.CreateNoti
 func (s *NotificationService) GetByID(ctx context.Context, id string) (*models.Notification, error) {
 	// Пробуем из кэша
 	if cached, err := s.cache.Get(ctx, id); err == nil && cached != nil {
+		if cached == nil {
+			// Запись была удалена
+			return nil, nil
+		}
 		return cached, nil
 	}
 
@@ -99,9 +98,10 @@ func (s *NotificationService) GetByID(ctx context.Context, id string) (*models.N
 	}
 
 	// Обновляем кэш асинхронно
+	notificationCopy := *notification
 	go func() {
-		if err := s.cache.Set(context.Background(), id, notification); err != nil {
-			log.Printf("Failed to update cache: %v", err)
+		if err := s.cache.Set(context.Background(), id, &notificationCopy); err != nil {
+			zlog.Logger.Error().Err(err).Str("notification_id", id).Msg("Failed to update cache")
 		}
 	}()
 
@@ -122,18 +122,72 @@ func (s *NotificationService) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("cannot delete sent notification")
 	}
 
+	if notification.Status == models.StatusCanceled {
+		return fmt.Errorf("notification already canceled")
+	}
 	// Удаляем из репозитория
 	if err := s.repo.DeleteNotification(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete notification: %w", err)
 	}
+	// Устанавливаем новый статус в redis
+	if err := s.cache.Set(ctx, id, nil); err != nil {
+		zlog.Logger.Warn().Err(err).Str("notification_id", id).Msg("Failed to update cache after deletion")
+	}
+	return nil
+}
 
-	// Удаляем из кэша
-	go func() {
-		if err := s.cache.Delete(context.Background(), id); err != nil {
-			log.Printf("Failed to delete from cache: %v", err)
+// Функция для воркера
+func (s *NotificationService) Consume(ctx context.Context, queueName string) (<-chan []byte, error) {
+	return s.queue.Consume(ctx, queueName)
+}
+
+func (s *NotificationService) ProcessNotificationData(ctx context.Context, data []byte) error {
+	var notification models.Notification
+	if err := json.Unmarshal(data, &notification); err != nil {
+		return fmt.Errorf("failed to unmarshal notification: %w", err)
+	}
+	return s.ProcessNotification(ctx, &notification)
+}
+
+func (s *NotificationService) ProcessNotification(ctx context.Context, notification *models.Notification) error {
+	zlog.Logger.Info().Str("notification_id", notification.ID).Msg("Processing notification")
+
+	// Проверяем актуальность уведомления
+	current, err := s.GetByID(ctx, notification.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get current notification state: %w", err)
+	}
+
+	if current == nil || current.Status != models.StatusPending {
+		return fmt.Errorf("notification is no longer pending")
+	}
+
+	// Отправляем уведомление
+	notifier, exists := s.notifiers[notification.Channel]
+	if !exists {
+		return fmt.Errorf("no notifier for channel: %s", notification.Channel)
+	}
+
+	if err := notifier.Send(current); err != nil {
+		// Обновляем статус на failed
+		if updateErr := s.repo.UpdateNotificationStatus(ctx, notification.ID, models.StatusFailed); updateErr != nil {
+			zlog.Logger.Error().Err(updateErr).Str("notification_id", notification.ID).Msg("Failed to update status after send error")
 		}
-	}()
+		return fmt.Errorf("failed to send notification: %w", err)
+	}
 
+	// Обновляем статус на sent
+	if err := s.repo.UpdateNotificationStatus(ctx, notification.ID, models.StatusSent); err != nil {
+		return fmt.Errorf("failed to update status: %w", err)
+	}
+
+	// Обновляем кэш
+	current.Status = models.StatusSent
+	if err := s.cache.Set(ctx, notification.ID, current); err != nil {
+		zlog.Logger.Error().Err(err).Str("notification_id", notification.ID).Msg("Failed to update cache")
+	}
+
+	zlog.Logger.Info().Str("notification_id", notification.ID).Msg("Notification processed successfully")
 	return nil
 }
 
@@ -164,50 +218,5 @@ func (s *NotificationService) publishToQueue(ctx context.Context, notification *
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
-
 	return s.queue.PublishWithDelay(ctx, "notifications", data, delay)
-}
-
-func (s *NotificationService) ProcessNotification(ctx context.Context, notificationData []byte) error {
-	var notification models.Notification
-	if err := json.Unmarshal(notificationData, &notification); err != nil {
-		return fmt.Errorf("failed to unmarshal notification: %w", err)
-	}
-
-	// Проверяем актуальность уведомления
-	current, err := s.GetByID(ctx, notification.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get current notification state: %w", err)
-	}
-
-	if current == nil || current.Status != models.StatusPending {
-		return fmt.Errorf("notification is no longer pending")
-	}
-
-	// Отправляем уведомление
-	notifier, exists := s.notifiers[notification.Channel]
-	if !exists {
-		return fmt.Errorf("no notifier for channel: %s", notification.Channel)
-	}
-
-	if err := notifier.Send(current); err != nil {
-		// Обновляем статус на failed
-		if updateErr := s.repo.UpdateNotificationStatus(ctx, notification.ID, models.StatusFailed); updateErr != nil {
-			log.Printf("Failed to update status after send error: %v", updateErr)
-		}
-		return fmt.Errorf("failed to send notification: %w", err)
-	}
-
-	// Обновляем статус на sent
-	if err := s.repo.UpdateNotificationStatus(ctx, notification.ID, models.StatusSent); err != nil {
-		return fmt.Errorf("failed to update status: %w", err)
-	}
-
-	// Обновляем кэш
-	current.Status = models.StatusSent
-	if err := s.cache.Set(ctx, notification.ID, current); err != nil {
-		log.Printf("Failed to update cache: %v", err)
-	}
-
-	return nil
 }
