@@ -24,9 +24,9 @@ services:
       - SMTP_HOST=smtp.yandex.ru
       - SMTP_PORT=587
       - SMTP_USER=pozedorum@yandex.ru # Поменять
-      - SMTP_PASSWORD=nil             # Поменять
+      - SMTP_PASSWORD=             # Поменять
       - SMTP_FROM=pozedorum@yandex.ru # Поменять
-      - TELEGRAM_BOT_TOKEN=nil        # Поменять
+      - TELEGRAM_BOT_TOKEN=       # Поменять
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,7 +45,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=delayed_notifier
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations/001_init_notifications.sql:/docker-entrypoint-initdb.d/init.sql

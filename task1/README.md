@@ -38,7 +38,7 @@ docker-compose up -d
 
 1. Создайте бота через @BotFather
 2. Получите токен бота
-3. Добавьте токен в переменные окружения:
+3. Добавьте токен в переменные окружения (добавлять в docker-compose.yml):
 
 ```bash
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
@@ -64,7 +64,7 @@ SMTP_PASSWORD=your_app_password_here
 
 ### Environment Variables
 
-Создайте `.env` файл или настройте в `docker-compose.yml`:
+Создайте `.env` файл и настройте в `docker-compose.yml`:
 
 ```env
 # Server
@@ -96,8 +96,6 @@ SMTP_PORT=587
 SMTP_USER=your_email@yandex.ru
 SMTP_PASSWORD=your_app_password
 
-# Telegram
-TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
 ### Docker Compose
