@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS url_clicks (
     id SERIAL PRIMARY KEY,
     short_url_id INTEGER NOT NULL REFERENCES short_urls(id) ON DELETE CASCADE,
     user_agent TEXT NULL,
+    ip_address VARCHAR(45) NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -35,11 +35,18 @@ func (s *ShortURLService) CreateShortURL(ctx context.Context, originalURL string
 	shortCode := utils.GenerateShortURL(originalURL)
 
 	// Получаем уникальный код
-	uniqueShortCode, err := s.ensureUniqueShortCode(ctx, originalURL, shortCode)
+	uniqueShortCode, ok, err := s.ensureUniqueShortCode(ctx, originalURL, shortCode)
 	if err != nil {
 		return nil, err
 	}
-
+	// костыль
+	if ok {
+		shortURL, err := s.repo.GetOriginalURLIfExists(ctx, shortCode)
+		if err != nil {
+			return nil, err
+		}
+		return shortURL, nil
+	}
 	shortURL := &models.ShortURL{
 		ShortCode:   uniqueShortCode,
 		OriginalURL: originalURL,
@@ -74,13 +81,14 @@ func (s *ShortURLService) Redirect(ctx context.Context, shortCode string, userAg
 		clickStruct := models.ClickAnalyticsEntry{
 			ShortCode: shortCode,
 			UserAgent: userAgent,
+			IPAddress: ip,
 			CreatedAt: time.Now(),
 		}
 		if err := s.repo.RegisterClick(context.Background(), &clickStruct); err != nil {
 			zlog.Logger.Error().Err(err).Str("short_code", shortCode).Msg("Failed to register click")
 		}
 	}()
-
+	zlog.Logger.Info().Str("short_code", shortCode).Str("original_url", shortURL.OriginalURL).Msg("serive layer")
 	return shortURL.OriginalURL, nil
 }
 
@@ -97,21 +105,21 @@ func (s *ShortURLService) GetStatByShortCode(ctx context.Context, shortCode stri
 	return s.repo.GetStatisticsByShortCode(ctx, shortCode, period, groupBy)
 }
 
-func (s *ShortURLService) ensureUniqueShortCode(ctx context.Context, originalURL, baseShortCode string) (string, error) {
+func (s *ShortURLService) ensureUniqueShortCode(ctx context.Context, originalURL, baseShortCode string) (string, bool, error) {
 	// 1. Атомарно проверяем существование и получаем данные
 	existingShortURL, err := s.repo.GetOriginalURLIfExists(ctx, baseShortCode)
 	if err != nil {
 		if errors.Is(err, models.ErrShortURLNotFound) {
 			// Код свободен - возвращаем как есть
-			return baseShortCode, nil
+			return baseShortCode, false, nil
 		}
-		return "", fmt.Errorf("failed to check short code existence: %w", err)
+		return "", false, fmt.Errorf("failed to check short code existence: %w", err)
 	}
 
 	// 2. Если URL совпадает - возвращаем существующий код
 	if existingShortURL.OriginalURL == originalURL {
 		zlog.Logger.Info().Str("short_code", baseShortCode).Msg("Returning existing short code for same URL")
-		return baseShortCode, nil
+		return baseShortCode, true, nil
 	}
 
 	// 3. Разные URL с одинаковым хэшем - коллизия!
@@ -134,9 +142,9 @@ func (s *ShortURLService) ensureUniqueShortCode(ctx context.Context, originalURL
 					Str("new_short_code", saltedShortCode).
 					Int("attempt", attempt).
 					Msg("Generated unique short code after collision")
-				return saltedShortCode, nil
+				return saltedShortCode, false, nil
 			}
-			return "", fmt.Errorf("failed to check salted short code: %w", err)
+			return "", false, fmt.Errorf("failed to check salted short code: %w", err)
 		}
 
 		// Если нашли существующий URL - проверяем совпадение
@@ -144,11 +152,11 @@ func (s *ShortURLService) ensureUniqueShortCode(ctx context.Context, originalURL
 			zlog.Logger.Info().
 				Str("short_code", saltedShortCode).
 				Msg("Found existing short code for the same URL")
-			return saltedShortCode, nil
+			return saltedShortCode, false, nil
 		}
 	}
 
-	return "", fmt.Errorf("failed to generate unique short code after %d attempts for URL: %s", attemptsCount, originalURL)
+	return "", false, fmt.Errorf("failed to generate unique short code after %d attempts for URL: %s", attemptsCount, originalURL)
 }
 
 func validateURL(rawURL string) error {

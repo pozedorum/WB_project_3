@@ -34,7 +34,7 @@ func (sr *ShortURLRepository) CreateShortURL(ctx context.Context, n *models.Shor
 	createQuery := `INSERT INTO short_urls (short_code, original_url, created_at, clicks_count) 
 		VALUES ($1, $2, $3, $4)`
 
-	_, err := sr.db.ExecWithRetry(ctx, models.StandartStrategy, createQuery,
+	_, err := sr.db.ExecWithRetry(ctx, models.StandardStrategy, createQuery,
 		n.ShortCode, n.OriginalURL, n.CreatedAt, n.ClicksCount)
 
 	if err != nil {
@@ -61,8 +61,8 @@ func (sr *ShortURLRepository) RegisterClick(ctx context.Context, click *models.C
 	// Запрос для вставки данных о клике
 	// ВАЖНО: Используем только базовые поля, которые есть в таблице из миграции 001
 	query := `INSERT INTO url_clicks 
-        (short_url_id, user_agent, created_at) 
-        SELECT id, $2, $3
+        (short_url_id, user_agent,ip_address, created_at) 
+        SELECT id, $2, $3, $4
         FROM short_urls WHERE short_code = $1
         RETURNING short_url_id`
 
@@ -70,6 +70,7 @@ func (sr *ShortURLRepository) RegisterClick(ctx context.Context, click *models.C
 	err = tx.QueryRowContext(ctx, query,
 		click.ShortCode,
 		click.UserAgent,
+		click.IPAddress,
 		click.CreatedAt,
 	).Scan(&shortURLID)
 	// Обрабатываем ошибку
@@ -271,7 +272,7 @@ func (sr *ShortURLRepository) getMonthlyStats(ctx context.Context, shortURLID in
 	rows, err := sr.db.Master.QueryContext(ctx, query, shortURLID)
 	if err != nil {
 		zlog.Logger.Error().Err(err).Int("url_id", shortURLID).Msg("Failed to get monthly stats")
-		return nil
+		return []models.MonthlyStat{}
 	}
 	defer rows.Close()
 

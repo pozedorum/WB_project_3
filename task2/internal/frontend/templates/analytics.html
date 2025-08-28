@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - URL Shortener</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .analytics-form {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        input, select, button {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+        button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .results {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .stat-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #e9ecef;
+        }
+        .home-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .home-link:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Analytics</h1>
+            
+            <div class="analytics-form">
+                <input type="text" id="shortCode" placeholder="Enter short code (e.g., EAaArV)" required>
+                <select id="period">
+                    <option value="">All time</option>
+                    <option value="1d">Last 24 hours</option>
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                </select>
+                <select id="groupBy">
+                    <option value="">All stats</option>
+                    <option value="day">By Day</option>
+                    <option value="month">By Month</option>
+                    <option value="browser">By Browser</option>
+                    <option value="os">By OS</option>
+                </select>
+                <button onclick="loadAnalytics()">Load Analytics</button>
+            </div>
+        </header>
+
+        <div class="results" id="results">
+            <div class="loading" id="loading">
+                Enter a short code and click "Load Analytics"
+            </div>
+            <div id="analytics-data" style="display: none;">
+                <!-- Данные будут вставлены сюда -->
+            </div>
+        </div>
+
+        <a href="/" class="home-link">← Back to Home</a>
+    </div>
+
+    <script>
+        async function loadAnalytics() {
+            const shortCode = document.getElementById('shortCode').value.trim();
+            const period = document.getElementById('period').value;
+            const groupBy = document.getElementById('groupBy').value;
+            
+            if (!shortCode) {
+                alert('Please enter a short code');
+                return;
+            }
+
+            document.getElementById('loading').innerHTML = 'Loading analytics...';
+            document.getElementById('analytics-data').style.display = 'none';
+
+            try {
+                const url = `/analytics/${shortCode}?period=${period}&groupBy=${groupBy}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayAnalytics(data);
+                } else {
+                    document.getElementById('loading').innerHTML = 'Error loading analytics. Please check the short code.';
+                }
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        function displayAnalytics(data) {
+            const analyticsDiv = document.getElementById('analytics-data');
+            analyticsDiv.innerHTML = `
+                <div class="stat-card">
+                    <h3>📈 Overview</h3>
+                    <p><strong>Total Clicks:</strong> ${data.total_clicks || 0}</p>
+                    <p><strong>Unique Visitors:</strong> ${data.unique_visitors || 0}</p>
+                </div>
+
+                ${data.daily_stats && data.daily_stats.length > 0 ? `
+                <div class="stat-card">
+                    <h3>📅 Daily Stats</h3>
+                    <table>
+                        <tr><th>Date</th><th>Clicks</th><th>Unique Visitors</th></tr>
+                        ${data.daily_stats.map(day => `
+                            <tr>
+                                <td>${day.date}</td>
+                                <td>${day.clicks}</td>
+                                <td>${day.unique_ips}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+                ` : ''}
+
+                ${data.monthly_stats && data.monthly_stats.length > 0 ? `
+                <div class="stat-card">
+                    <h3>📅 Monthly Stats</h3>
+                    <table>
+                        <tr><th>Month</th><th>Clicks</th><th>Unique Visitors</th></tr>
+                        ${data.monthly_stats.map(month => `
+                            <tr>
+                                <td>${month.month}</td>
+                                <td>${month.clicks}</td>
+                                <td>${month.unique_ips}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+                ` : ''}
+
+                ${data.browser_stats && data.browser_stats.length > 0 ? `
+                <div class="stat-card">
+                    <h3>🌐 Browsers</h3>
+                    <table>
+                        <tr><th>Browser</th><th>Count</th></tr>
+                        ${data.browser_stats.map(browser => `
+                            <tr>
+                                <td>${browser.browser}</td>
+                                <td>${browser.count}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+                ` : ''}
+                
+                ${data.os_stats && data.os_stats.length > 0 ? `
+                <div class="stat-card">
+                    <h3>🌐 OSs</h3>
+                    <table>
+                        <tr><th>OS</th><th>Count</th></tr>
+                        ${data.os_stats.map(os => `
+                            <tr>
+                                <td>${os.os}</td>
+                                <td>${os.count}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+                ` : ''}
+
+                ${data.device_stats && data.device_stats.length > 0 ? `
+                <div class="stat-card">
+                    <h3>🌐 Devices</h3>
+                    <table>
+                        <tr><th>Device</th><th>Count</th></tr>
+                        ${data.device_stats.map(device => `
+                            <tr>
+                                <td>${device.device}</td>
+                                <td>${device.count}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+                ` : ''}
+            `;
+
+            document.getElementById('loading').style.display = 'none';
+            analyticsDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

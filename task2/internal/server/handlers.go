@@ -2,8 +2,10 @@ package server
 
 import (
 	"errors"
+	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pozedorum/WB_project_3/task2/internal/models"
 	"github.com/pozedorum/wbf/ginext"
 	"github.com/pozedorum/wbf/zlog"
@@ -19,7 +21,6 @@ func (ss *ShortURLServer) Shorten(c *ginext.Context) {
 		return
 	}
 	zlog.Logger.Info().Str("original url", request.URL).Time("created_at", time.Now()).Msg("creating short URL")
-
 	su, err := ss.service.CreateShortURL(c.Request.Context(), request.URL)
 	if err != nil {
 		zlog.Logger.Error().Err(err).
@@ -48,10 +49,11 @@ func (ss *ShortURLServer) Shorten(c *ginext.Context) {
 func (ss *ShortURLServer) Redirect(c *ginext.Context) {
 	shortCode := c.Param("shortCode")
 	if shortCode == "" {
+		zlog.Logger.Error().Msg("short URL not found")
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "short URL not found"})
 		return
 	}
-
+	zlog.Logger.Info().Str("short_code", shortCode).Msg("Redirect called")
 	userAgent := c.Request.UserAgent()
 	ip := c.ClientIP()
 
@@ -61,18 +63,20 @@ func (ss *ShortURLServer) Redirect(c *ginext.Context) {
 		ip)
 	if err != nil {
 		if errors.Is(err, models.ErrShortURLNotFound) {
+			zlog.Logger.Error().Msg("short URL not found")
 			c.JSON(models.StatusBadRequest, ginext.H{"error": "short URL not found"})
 			return
 		}
 		zlog.Logger.Error().Err(err).Str("short_code", shortCode).Msg("Failed to redirect")
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Internal server error"})
+		return
 	}
-
+	zlog.Logger.Info().Str("short_code", shortCode).Str("original_url", originalURL)
 	c.Redirect(models.StatusFound, originalURL)
 }
 
 func (ss *ShortURLServer) Analytics(c *ginext.Context) {
-	shortCode := c.Param("code")
+	shortCode := c.Param("shortCode")
 
 	// Опциональные параметры фильтрации
 	period := c.Query("period")   // "1d", "7d", "30d"
@@ -102,8 +106,31 @@ func (ss *ShortURLServer) Analytics(c *ginext.Context) {
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to get analytics"})
 		return
 	}
-
+	zlog.Logger.Info().Any("month_date", analytics.MonthlyStats[0])
 	c.JSON(models.StatusOK, analytics)
+}
+
+func (ss *ShortURLServer) IndexPage(c *ginext.Context) {
+	c.HTML(http.StatusOK, "index.html", gin.H{
+		"title": "URL Shortener",
+	})
+}
+
+func (ss *ShortURLServer) ResultPage(c *ginext.Context) {
+	shortURL := c.Query("short_url")
+	originalURL := c.Query("original_url")
+
+	c.HTML(http.StatusOK, "result.html", gin.H{
+		"title":        "URL Created",
+		"short_url":    shortURL,
+		"original_url": originalURL,
+	})
+}
+
+func (ss *ShortURLServer) AnalyticsPage(c *ginext.Context) {
+	c.HTML(http.StatusOK, "analytics.html", gin.H{
+		"title": "Analytics",
+	})
 }
 
 func (ss *ShortURLServer) HealthCheck(c *ginext.Context) {

@@ -82,7 +82,7 @@ type TimeSeriesStat struct {
 }
 
 var (
-	StandartStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
+	StandardStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
 	ConsumerStrategy = retry.Strategy{Attempts: 5, Delay: 2 * time.Second}
 )
 
