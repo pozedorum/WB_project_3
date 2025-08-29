@@ -56,8 +56,11 @@ func (sr *ShortURLRepository) RegisterClick(ctx context.Context, click *models.C
 		zlog.Logger.Error().Err(err).Msg("Failed to begin transaction")
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
-
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			zlog.Logger.Error().Err(err).Msg("Failed to end transaction")
+		}
+	}()
 	// Запрос для вставки данных о клике
 	// ВАЖНО: Используем только базовые поля, которые есть в таблице из миграции 001
 	query := `INSERT INTO url_clicks 
