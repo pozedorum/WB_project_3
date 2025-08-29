@@ -97,5 +97,6 @@ const (
 	StatusFound               = 302
 	StatusBadRequest          = 400
 	StatusNotFound            = 404
+	StatisConflict            = 409
 	StatusInternalServerError = 500
 )

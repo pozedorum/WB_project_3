@@ -13,18 +13,37 @@ import (
 
 func (ss *ShortURLServer) Shorten(c *ginext.Context) {
 	var request struct {
-		URL string `json:"url" binding:"required,url"`
+		URL        string `json:"url" binding:"required,url"`
+		CustomCode string `json:"custom_code,omitempty" binding:"omitempty,alphanum,min=1,max=6"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for create short URL")
-		c.JSON(models.StatusBadRequest, ginext.H{"error": err.Error()})
+		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
-	zlog.Logger.Info().Str("original url", request.URL).Time("created_at", time.Now()).Msg("creating short URL")
-	su, err := ss.service.CreateShortURL(c.Request.Context(), request.URL)
+
+	zlog.Logger.Info().
+		Str("original_url", request.URL).
+		Str("custom_code", request.CustomCode).
+		Time("created_at", time.Now()).
+		Msg("creating short URL")
+
+	// Создаем короткую ссылку с учетом кастомного кода
+	su, err := ss.service.CreateShortURL(c.Request.Context(), request.URL, request.CustomCode)
 	if err != nil {
+		if errors.Is(err, models.ErrDuplicateShortCode) {
+			zlog.Logger.Warn().
+				Str("custom_code", request.CustomCode).
+				Msg("Custom code already exists")
+			c.JSON(models.StatisConflict, ginext.H{
+				"error": "Custom short code already exists. Please choose a different one.",
+			})
+			return
+		}
+
 		zlog.Logger.Error().Err(err).
-			Str("original url", request.URL).
+			Str("original_url", request.URL).
+			Str("custom_code", request.CustomCode).
 			Msg("Failed to create short URL")
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": err.Error()})
 		return
@@ -39,8 +58,8 @@ func (ss *ShortURLServer) Shorten(c *ginext.Context) {
 	}
 
 	zlog.Logger.Info().
-		Str("original url", response.OriginalURL).
-		Str("short url", response.ShortURL).
+		Str("original_url", response.OriginalURL).
+		Str("short_url", response.ShortURL).
 		Msg("Short URL created successfully")
 
 	c.JSON(models.StatusAccepted, response)

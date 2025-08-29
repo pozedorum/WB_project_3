@@ -35,8 +35,15 @@
         }
         .form-group {
             margin-bottom: 20px;
+            text-align: left;
         }
-        input[type="url"] {
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="url"], input[type="text"] {
             width: 100%;
             padding: 15px;
             border: 2px solid #ddd;
@@ -44,9 +51,13 @@
             font-size: 16px;
             transition: border-color 0.3s;
         }
-        input[type="url"]:focus {
+        input[type="url"]:focus, input[type="text"]:focus {
             outline: none;
             border-color: #667eea;
+        }
+        .optional {
+            color: #666;
+            font-style: italic;
         }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -84,6 +95,14 @@
             font-weight: bold;
             word-break: break-all;
         }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -92,11 +111,20 @@
         
         <form id="shorten-form">
             <div class="form-group">
-                <input type="url" name="url" placeholder="https://example.com" required>
+                <label for="original-url">Original URL *</label>
+                <input type="url" id="original-url" name="url" placeholder="https://example.com" required>
             </div>
+            
+            <div class="form-group">
+                <label for="custom-code">Custom Short Code <span class="optional">(optional, 1-6 characters)</span></label>
+                <input type="text" id="custom-code" name="custom_code" placeholder="my-link" 
+                       pattern="[a-zA-Z0-9]{1,6}" title="1-6 alphanumeric characters">
+            </div>
+            
             <button type="submit">Shorten URL</button>
         </form>
 
+        <div id="error" class="error"></div>
         <div id="result"></div>
 
         <div class="links">
@@ -108,20 +136,31 @@
         document.getElementById('shorten-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            // Скрываем предыдущие сообщения
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+            
             const formData = new FormData(this);
             const url = formData.get('url');
+            const customCode = formData.get('custom_code');
             
             try {
+                const requestBody = { url: url };
+                if (customCode) {
+                    requestBody.custom_code = customCode;
+                }
+                
                 const response = await fetch('/shorten', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify(requestBody)
                 });
                 
+                const data = await response.json();
+                
                 if (response.ok) {
-                    const data = await response.json();
                     const resultDiv = document.getElementById('result');
                     
                     resultDiv.innerHTML = `
@@ -135,10 +174,15 @@
                     // Очищаем форму
                     this.reset();
                 } else {
-                    alert('Error creating short URL');
+                    // Показываем ошибку
+                    const errorDiv = document.getElementById('error');
+                    errorDiv.textContent = data.error || 'Error creating short URL';
+                    errorDiv.style.display = 'block';
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
             }
         });
 
@@ -147,6 +191,16 @@
                 alert('Copied to clipboard!');
             });
         }
+
+        // Валидация кастомного кода
+        document.getElementById('custom-code').addEventListener('input', function(e) {
+            const value = e.target.value;
+            if (value.length > 6) {
+                e.target.value = value.slice(0, 6);
+            }
+            // Убираем не-алфавитно-цифровые символы
+            e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+        });
     </script>
 </body>
 </html>

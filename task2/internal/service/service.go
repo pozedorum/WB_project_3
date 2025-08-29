@@ -26,42 +26,62 @@ func New(repo Repository) *ShortURLService {
 	return &ShortURLService{repo: repo}
 }
 
-func (s *ShortURLService) CreateShortURL(ctx context.Context, originalURL string) (*models.ShortURL, error) {
+func (s *ShortURLService) CreateShortURL(ctx context.Context, originalURL string, customCode string) (*models.ShortURL, error) {
 	if err := validateURL(originalURL); err != nil {
 		return nil, err
 	}
 
-	// Генерация shortCode
-	shortCode := utils.GenerateShortURL(originalURL)
+	var shortCode string
 
-	// Получаем уникальный код
-	uniqueShortCode, ok, err := s.ensureUniqueShortCode(ctx, originalURL, shortCode)
-	if err != nil {
-		return nil, err
-	}
-	// костыль
-	if ok {
-		shortURL, err := s.repo.GetOriginalURLIfExists(ctx, shortCode)
+	if customCode != "" {
+		shortCode = customCode
+		existingURL, err := s.repo.GetOriginalURLIfExists(ctx, shortCode)
+		if err == nil {
+			if existingURL.OriginalURL != originalURL {
+				// Кастомный код уже существует и связан с другим URL
+				return nil, models.ErrDuplicateShortCode
+			} else {
+				// Кастомный код существует и связан с правильным URL
+				return existingURL, nil
+			}
+		}
+		if !errors.Is(err, models.ErrShortURLNotFound) {
+			return nil, err
+		}
+
+	} else {
+		shortCode = utils.GenerateShortURL(originalURL)
+		uniqueShortCode, ok, err := s.ensureUniqueShortCode(ctx, originalURL, shortCode)
 		if err != nil {
 			return nil, err
 		}
-		return shortURL, nil
+		if ok {
+			shortURL, err := s.repo.GetOriginalURLIfExists(ctx, shortCode)
+			if err != nil {
+				return nil, err
+			}
+			return shortURL, nil
+		}
+		shortCode = uniqueShortCode
 	}
+
 	shortURL := &models.ShortURL{
-		ShortCode:   uniqueShortCode,
+		ShortCode:   shortCode,
 		OriginalURL: originalURL,
 		CreatedAt:   time.Now(),
 		ClicksCount: 0,
 	}
 
-	// Вызов repo.CreateShortURL
-	if err = s.repo.CreateShortURL(ctx, shortURL); err != nil {
-		// Обрабатываем возможные ошибки дубликата
+	if err := s.repo.CreateShortURL(ctx, shortURL); err != nil {
 		if errors.Is(err, models.ErrDuplicateShortCode) {
 			return nil, models.ErrDuplicateShortCode
 		}
 		return nil, err
 	}
+
+	zlog.Logger.Info().
+		Str("short_code", shortCode).
+		Msg("Short URL created")
 
 	return shortURL, nil
 }
