@@ -25,24 +25,26 @@ type CreateCommentRequest struct {
 }
 
 type CommentTreeResponse struct {
-	CommentRoot *Comment `json:"comments"`
-	Total       int      `json:"total"`
-	Page        int      `json:"page"`
-	PageSize    int      `json:"page_size"`
-	TotalPages  int      `json:"total_pages"`
-}
-
-type CommentsResponse struct {
-	Comments []*Comment `json:"comments"`
-	Total    int        `json:"total"`
-	Page     int        `json:"page"`
-	PageSize int        `json:"page_size"`
+	Comments   []*Comment `json:"comments"`
+	Total      int        `json:"total"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"page_size"`
+	TotalPages int        `json:"total_pages"`
 }
 
 type SearchRequest struct {
 	Query    string `json:"query"`
 	Page     int    `json:"page"`
 	PageSize int    `json:"page_size"`
+}
+
+type SearchResponse struct {
+	Results    []*Comment `json:"results"`
+	Query      string     `json:"query"`
+	Total      int        `json:"total"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"page_size"`
+	TotalPages int        `json:"total_pages"`
 }
 
 var (

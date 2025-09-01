@@ -15,8 +15,8 @@ RUN go mod download
 COPY . .
 
 # Собираем приложение
-RUN go build -o url-shortener ./cmd/main.go
+RUN go build -o commentTree ./cmd/main.go
 
 EXPOSE 8080
 
-CMD ["./url-shortener"]
+CMD ["./commentTree"]

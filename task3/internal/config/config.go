@@ -13,8 +13,6 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
-	Redis    RedisConfig
-	Retry    RetryConfig
 }
 
 type ServerConfig struct {
@@ -35,19 +33,6 @@ func (d DatabaseConfig) GetDSN() string {
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode)
 }
 
-type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int
-}
-
-type RetryConfig struct {
-	MaxRetries  int
-	BaseDelay   time.Duration
-	WorkerCount int
-}
-
 func Load() *Config {
 	// Загрузка .env файла
 	if err := godotenv.Load(); err != nil {
@@ -65,17 +50,6 @@ func Load() *Config {
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			Name:     getEnv("DB_NAME", "url_shortener"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-		},
-		Redis: RedisConfig{
-			Host:     getEnv("REDIS_HOST", "localhost"),
-			Port:     getEnv("REDIS_PORT", "6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
-			DB:       getEnvAsInt("REDIS_DB", 0),
-		},
-		Retry: RetryConfig{
-			MaxRetries:  getEnvAsInt("MAX_RETRIES", 3),
-			BaseDelay:   getEnvAsDuration("BASE_DELAY", 1*time.Second),
-			WorkerCount: getEnvAsInt("WORKER_COUNT", 5),
 		},
 	}
 }

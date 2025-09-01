@@ -1,7 +1,7 @@
 -- Базовая таблица комментариев
 CREATE TABLE IF NOT EXISTS comments (
-    id SERIAL PRIMARY KEY,
-    parent_id INTEGER NULL REFERENCES comments(id) ON DELETE CASCADE,
+    id VARCHAR(36) PRIMARY KEY,
+    parent_id VARCHAR(36) NULL REFERENCES comments(id) ON DELETE CASCADE,
     author VARCHAR(100) NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
