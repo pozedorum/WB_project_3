@@ -22,10 +22,10 @@ func (cs *CommentServer) SetupRoutes(router *ginext.RouterGroup) {
 	// Фронтенд роуты
 
 	// API роуты
-	router.POST("/comments", cs.PostNewComment)
-	router.DELETE("/comments/:id", cs.DeleteCommentTree)
-	router.GET("/comments", cs.GetCommentTree)
-	router.GET("/comments/all", cs.GetAllComments)
-	router.GET("/comments/search", cs.SearchComments)
+	router.POST("/notify", cs.PostNewComment)
+	router.DELETE("/notify/:id", cs.DeleteCommentTree)
+	router.GET("/notify/:id", cs.GetCommentTree)
+	router.GET("/notify/all", cs.GetAllComments)
+	router.GET("/notify/search", cs.SearchComments)
 	router.GET("/health", cs.HealthCheck)
 }

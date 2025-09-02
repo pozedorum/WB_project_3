@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pozedorum/WB_project_3/task3/internal/models"
@@ -102,53 +101,15 @@ func (r *CommentRepository) GetCommentByID(ctx context.Context, id string) (*mod
 	return &comment, nil
 }
 
-func (r *CommentRepository) GetCommentsByParentID(ctx context.Context, parentID string, page, pageSize int) ([]*models.Comment, int, error) {
-	// Определяем условие WHERE
-	var whereCondition string
-	var args []interface{}
+func (r *CommentRepository) GetRootComments(ctx context.Context) ([]*models.Comment, error) {
 
-	if parentID == "" {
-		whereCondition = "parent_id IS NULL AND deleted = false"
-	} else {
-		whereCondition = "parent_id = $1 AND deleted = false"
-		args = append(args, parentID)
-	}
+	query := `SELECT id, COALESCE(parent_id, '') as parent_id, author, content, created_at, updated_at, deleted 
+			  FROM comments 
+			  WHERE parent_id IS NULL AND deleted = false`
 
-	// Получаем общее количество
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM comments WHERE %s", whereCondition)
-	var totalCount int
-
-	rows, err := r.db.QueryWithRetry(ctx, models.StandardStrategy, countQuery, args...)
+	rows, err := r.db.QueryWithRetry(ctx, models.StandardStrategy, query)
 	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(&totalCount)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-	if err = rows.Err(); err != nil {
-		return nil, 0, err
-	}
-
-	// Получаем данные с пагинацией
-	offset := (page - 1) * pageSize
-	query := fmt.Sprintf(`
-		SELECT id, COALESCE(parent_id, '') as parent_id, author, content, created_at, updated_at, deleted
-		FROM comments 
-		WHERE %s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, whereCondition, len(args)+1, len(args)+2)
-
-	args = append(args, pageSize, offset)
-
-	rows, err = r.db.QueryWithRetry(ctx, models.StandardStrategy, query, args...)
-	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -166,17 +127,85 @@ func (r *CommentRepository) GetCommentsByParentID(ctx context.Context, parentID 
 			&comment.Deleted,
 		)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 
 		comments = append(comments, &comment)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return comments, totalCount, nil
+	return comments, nil
+}
+
+func (r *CommentRepository) GetCommentTree(ctx context.Context, commentID string) ([]*models.Comment, error) {
+	query := `
+		WITH RECURSIVE comment_tree AS (
+			-- Начинаем с запрошенного комментария (включаем его самого)
+			SELECT id, parent_id, author, content, created_at, updated_at, deleted
+			FROM comments 
+			WHERE id = $1 AND deleted = false
+			
+			UNION ALL
+			
+			-- Ищем ВСЕХ потомков (детей, внуков и т.д.)
+			SELECT c.id, c.parent_id, c.author, c.content, c.created_at, c.updated_at, c.deleted
+			FROM comments c
+			INNER JOIN comment_tree ct ON c.parent_id = ct.id  -- Ищем детей текущего узла
+			WHERE c.deleted = false
+		)
+		SELECT id, parent_id, author, content
+		FROM comment_tree
+		ORDER BY created_at
+	`
+	zlog.Logger.Info().Str("comment_id", commentID).Msg("Getting comment tree from DB")
+	rows, err := r.db.QueryWithRetry(ctx, models.StandardStrategy, query, commentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*models.Comment
+	for rows.Next() {
+		var comment models.Comment
+		var parentID *string // Для nullable parent_id
+
+		err = rows.Scan(
+			&comment.ID,
+			&parentID, // Сканируем как указатель
+			&comment.Author,
+			&comment.Content,
+			// &comment.CreatedAt,
+			// &comment.UpdatedAt,
+			// &comment.Deleted,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Обрабатываем nullable parent_id
+		if parentID != nil {
+			comment.ParentID = *parentID
+		} else {
+			comment.ParentID = ""
+		}
+
+		comments = append(comments, &comment)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	zlog.Logger.Info().Int("count", len(comments)).Msg("Comments found")
+	for _, comment := range comments {
+		zlog.Logger.Info().
+			Str("id", comment.ID).
+			Str("parent_id", comment.ParentID).
+			Msg("Comment in tree")
+	}
+	return comments, nil
 }
 
 func (r *CommentRepository) GetAllComments(ctx context.Context) ([]*models.Comment, error) {

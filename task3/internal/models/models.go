@@ -16,6 +16,7 @@ type Comment struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	Deleted   bool       `json:"-"`
 	Children  []*Comment `json:"children,omitempty"`
+	Level     int        `json:"level,omitempty"`
 }
 
 type CreateCommentRequest struct {
@@ -25,6 +26,14 @@ type CreateCommentRequest struct {
 }
 
 type CommentTreeResponse struct {
+	Comments   []*Comment `json:"comments"`
+	Total      int        `json:"total"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"page_size"`
+	TotalPages int        `json:"total_pages"`
+}
+
+type CommentListResponse struct {
 	Comments   []*Comment `json:"comments"`
 	Total      int        `json:"total"`
 	Page       int        `json:"page"`

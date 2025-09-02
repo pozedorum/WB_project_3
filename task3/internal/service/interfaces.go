@@ -12,8 +12,11 @@ type Repository interface {
 	CreateComment(ctx context.Context, comment *models.Comment) error
 	// Получение комментария по ID
 	GetCommentByID(ctx context.Context, id string) (*models.Comment, error)
-	// Получение комментариев по родительскому ID (с пагинацией)
-	GetCommentsByParentID(ctx context.Context, parentID string, page, pageSize int) ([]*models.Comment, int, error)
+
+	// Получение корневых
+	GetRootComments(ctx context.Context) ([]*models.Comment, error)
+	// Получение дерева комментариев
+	GetCommentTree(ctx context.Context, commentID string) ([]*models.Comment, error)
 	// Получение всех комментариев (для построения дерева)
 	GetAllComments(ctx context.Context) ([]*models.Comment, error)
 	// Удаление комментария и всех его потомков

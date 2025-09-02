@@ -9,6 +9,7 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// Работает
 func (cs *CommentServer) PostNewComment(c *ginext.Context) {
 	var request models.CreateCommentRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -44,15 +45,16 @@ func (cs *CommentServer) PostNewComment(c *ginext.Context) {
 	c.JSON(models.StatusAccepted, comment)
 }
 
+// Работает
 func (cs *CommentServer) GetCommentTree(c *ginext.Context) {
-	parentID := c.Query("parent")
+	commentID := c.Param("id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	result, err := cs.service.GetCommentTree(c.Request.Context(), parentID, page, pageSize)
+	result, err := cs.service.GetCommentTree(c.Request.Context(), commentID, page, pageSize)
 	if err != nil {
 		zlog.Logger.Error().Err(err).
-			Str("parent_id", parentID).
+			Str("comment_id", commentID).
 			Int("page", page).
 			Int("page_size", pageSize).
 			Msg("Failed to get comment tree")
@@ -61,7 +63,7 @@ func (cs *CommentServer) GetCommentTree(c *ginext.Context) {
 	}
 
 	zlog.Logger.Info().
-		Str("parent_id", parentID).
+		Str("comment_id", commentID).
 		Int("page", page).
 		Int("page_size", pageSize).
 		Int("total", result.Total).
@@ -70,6 +72,7 @@ func (cs *CommentServer) GetCommentTree(c *ginext.Context) {
 	c.JSON(models.StatusOK, result)
 }
 
+// Работает
 func (cs *CommentServer) DeleteCommentTree(c *ginext.Context) {
 	parrentID := c.Param("id")
 	if parrentID == "" {
@@ -137,6 +140,7 @@ func (cs *CommentServer) SearchComments(c *ginext.Context) {
 	c.JSON(models.StatusOK, result)
 }
 
+// Работает
 func (cs *CommentServer) GetAllComments(c *ginext.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
