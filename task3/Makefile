@@ -16,7 +16,7 @@ rebuild:
 
 service_rebuild:
 	docker compose stop app
-	docker compose up -d app && docker compose logs -f app
+	docker compose up --build -d app && docker compose logs -f app
 
 run-detached:
 	docker compose up -d
@@ -30,6 +30,7 @@ logs:
 clean:
 	docker compose down -v
 	rm -f commentTree
+	rm -rf postgres_data/*
 
 migrate:
 	docker compose exec postgres psql -U postgres -d comments_db -f /docker-entrypoint-initdb.d/init.sql

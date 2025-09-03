@@ -29,7 +29,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
       - ./migrations/001_create_comments.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - shortener-network
@@ -42,6 +42,12 @@ services:
 
 volumes:
   postgres_data:
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   device: ./postgres_data  # Явный путь относительно docker-compose.yml
+    #   o: bind
+
 #  redis_data:
 
 networks:

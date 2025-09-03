@@ -26,10 +26,14 @@ func NewCommentRepository(db *dbpg.DB) *CommentRepository {
 }
 
 func (nr *CommentRepository) Close() {
-	nr.db.Master.Close()
+	if err := nr.db.Master.Close(); err != nil {
+		zlog.Logger.Panic().Msg("Database failed to close")
+	}
 	for _, slave := range nr.db.Slaves {
 		if slave != nil {
-			slave.Close()
+			if err := slave.Close(); err != nil {
+				zlog.Logger.Panic().Msg("Slave database failed to close")
+			}
 		}
 	}
 	zlog.Logger.Info().Msg("PostgreSQL connections closed")
@@ -73,8 +77,11 @@ func (r *CommentRepository) GetCommentByID(ctx context.Context, id string) (*mod
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 	if !rows.Next() {
 		return nil, nil
 	}
@@ -111,7 +118,11 @@ func (r *CommentRepository) GetRootComments(ctx context.Context) ([]*models.Comm
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 
 	var comments []*models.Comment
 	for rows.Next() {
@@ -165,7 +176,11 @@ func (r *CommentRepository) GetCommentTree(ctx context.Context, commentID string
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 
 	var comments []*models.Comment
 	for rows.Next() {
@@ -220,7 +235,11 @@ func (r *CommentRepository) GetAllComments(ctx context.Context) ([]*models.Comme
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 
 	var comments []*models.Comment
 	for rows.Next() {
@@ -292,7 +311,11 @@ func (r *CommentRepository) SearchComments(ctx context.Context, query string, pa
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 
 	if rows.Next() {
 		err = rows.Scan(&totalCount)
@@ -309,7 +332,11 @@ func (r *CommentRepository) SearchComments(ctx context.Context, query string, pa
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			zlog.Logger.Panic().Msg("failed to close sql rows")
+		}
+	}()
 
 	var comments []*models.Comment
 	for rows.Next() {

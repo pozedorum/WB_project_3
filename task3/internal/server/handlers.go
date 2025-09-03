@@ -48,28 +48,25 @@ func (cs *CommentServer) PostNewComment(c *ginext.Context) {
 // Работает
 func (cs *CommentServer) GetCommentTree(c *ginext.Context) {
 	commentID := c.Param("id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	result, err := cs.service.GetCommentTree(c.Request.Context(), commentID, page, pageSize)
+	result, err := cs.service.GetCommentTree(c.Request.Context(), commentID)
 	if err != nil {
 		zlog.Logger.Error().Err(err).
 			Str("comment_id", commentID).
-			Int("page", page).
-			Int("page_size", pageSize).
 			Msg("Failed to get comment tree")
 		c.JSON(models.StatusBadRequest, ginext.H{"error": err.Error()})
 		return
 	}
-
+	simpleRes := &models.CommentTreeResponseSimple{
+		Comments: simplifyComments(result.Comments),
+		Total:    result.Total,
+	}
 	zlog.Logger.Info().
 		Str("comment_id", commentID).
-		Int("page", page).
-		Int("page_size", pageSize).
 		Int("total", result.Total).
 		Msg("Comment tree retrieved successfully")
 
-	c.JSON(models.StatusOK, result)
+	c.JSON(models.StatusOK, simpleRes)
 }
 
 // Работает
@@ -129,7 +126,11 @@ func (cs *CommentServer) SearchComments(c *ginext.Context) {
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": err.Error()})
 		return
 	}
-
+	simpleRes := &models.SearchResponseSimple{
+		Results: simplifyComments(result.Results),
+		Query:   result.Query,
+		Total:   result.Total,
+	}
 	zlog.Logger.Info().
 		Str("query", query).
 		Int("total_results", result.Total).
@@ -137,36 +138,41 @@ func (cs *CommentServer) SearchComments(c *ginext.Context) {
 		Int("page_size", pageSize).
 		Msg("Search completed successfully")
 
-	c.JSON(models.StatusOK, result)
+	c.JSON(models.StatusOK, simpleRes)
 }
 
 // Работает
 func (cs *CommentServer) GetAllComments(c *ginext.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	// page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	// pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
 	zlog.Logger.Info().
-		Int("page", page).
-		Int("page_size", pageSize).
+		// Int("page", page).
+		// Int("page_size", pageSize).
 		Msg("Getting all comments")
 
-	result, err := cs.service.GetAllComments(c.Request.Context(), page, pageSize)
+	result, err := cs.service.GetAllComments(c.Request.Context())
 	if err != nil {
 		zlog.Logger.Error().Err(err).
-			Int("page", page).
-			Int("page_size", pageSize).
+			// Int("page", page).
+			// Int("page_size", pageSize).
 			Msg("Failed to get all comments")
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": err.Error()})
 		return
 	}
 
+	simpleRes := &models.CommentTreeResponseSimple{
+		Comments: simplifyComments(result.Comments),
+		Total:    result.Total,
+	}
+
 	zlog.Logger.Info().
-		Int("page", page).
-		Int("page_size", pageSize).
+		// Int("page", page).
+		// Int("page_size", pageSize).
 		Int("total_comments", result.Total).
 		Msg("All comments retrieved successfully")
 
-	c.JSON(models.StatusOK, result)
+	c.JSON(models.StatusOK, simpleRes)
 }
 
 func (cs *CommentServer) HealthCheck(c *ginext.Context) {
@@ -178,4 +184,35 @@ func (cs *CommentServer) HealthCheck(c *ginext.Context) {
 
 	zlog.Logger.Debug().Msg("Health check completed")
 	c.JSON(models.StatusOK, response)
+}
+
+func (cs *CommentServer) ServeFrontend(c *ginext.Context) {
+	c.HTML(models.StatusOK, "index.html", nil)
+}
+
+func simplifyComments(comments []*models.Comment) []*models.SimplifiedComment {
+	var result []*models.SimplifiedComment
+
+	for _, comment := range comments {
+		simplified := &models.SimplifiedComment{
+			ID:      comment.ID,
+			Author:  comment.Author,
+			Content: comment.Content,
+			Level:   comment.Level,
+		}
+
+		// Добавляем parent_id только если не пустой
+		if comment.ParentID != "" {
+			simplified.ParentID = comment.ParentID
+		}
+
+		// Рекурсивно обрабатываем детей
+		if len(comment.Children) > 0 {
+			simplified.Children = simplifyComments(comment.Children)
+		}
+
+		result = append(result, simplified)
+	}
+
+	return result
 }

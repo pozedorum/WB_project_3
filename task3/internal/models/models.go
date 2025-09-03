@@ -16,13 +16,28 @@ type Comment struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	Deleted   bool       `json:"-"`
 	Children  []*Comment `json:"children,omitempty"`
-	Level     int        `json:"level,omitempty"`
+	Level     int        `json:"level"`
+}
+
+type SimplifiedComment struct {
+	ID       string               `json:"id"`
+	ParentID string               `json:"parent_id,omitempty"`
+	Author   string               `json:"author"`
+	Content  string               `json:"content"`
+	Level    int                  `json:"level"`
+	Children []*SimplifiedComment `json:"children,omitempty"`
 }
 
 type CreateCommentRequest struct {
 	ParentID string `json:"parent_id"`
 	Author   string `json:"author"`
 	Content  string `json:"content"`
+}
+
+type SearchRequest struct {
+	Query    string `json:"query"`
+	Page     int    `json:"page"`
+	PageSize int    `json:"page_size"`
 }
 
 type CommentTreeResponse struct {
@@ -33,18 +48,9 @@ type CommentTreeResponse struct {
 	TotalPages int        `json:"total_pages"`
 }
 
-type CommentListResponse struct {
-	Comments   []*Comment `json:"comments"`
-	Total      int        `json:"total"`
-	Page       int        `json:"page"`
-	PageSize   int        `json:"page_size"`
-	TotalPages int        `json:"total_pages"`
-}
-
-type SearchRequest struct {
-	Query    string `json:"query"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
+type CommentTreeResponseSimple struct {
+	Comments []*SimplifiedComment `json:"comments"`
+	Total    int                  `json:"total"`
 }
 
 type SearchResponse struct {
@@ -54,6 +60,12 @@ type SearchResponse struct {
 	Page       int        `json:"page"`
 	PageSize   int        `json:"page_size"`
 	TotalPages int        `json:"total_pages"`
+}
+
+type SearchResponseSimple struct {
+	Results []*SimplifiedComment `json:"results"`
+	Query   string               `json:"query"`
+	Total   int                  `json:"total"`
 }
 
 var (

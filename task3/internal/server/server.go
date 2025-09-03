@@ -19,13 +19,17 @@ func (cs *CommentServer) SetupRoutes(router *ginext.RouterGroup) {
 	router.Use(ginext.Logger())
 	router.Use(ginext.Recovery())
 
-	// Фронтенд роуты
+	// Статические файлы
+	router.Static("/static", "./internal/frontend/templates")
+
+	// Главная страница
+	router.GET("/", cs.ServeFrontend)
 
 	// API роуты
-	router.POST("/notify", cs.PostNewComment)
-	router.DELETE("/notify/:id", cs.DeleteCommentTree)
-	router.GET("/notify/:id", cs.GetCommentTree)
-	router.GET("/notify/all", cs.GetAllComments)
-	router.GET("/notify/search", cs.SearchComments)
+	router.POST("/comments", cs.PostNewComment)
+	router.DELETE("/comments/:id", cs.DeleteCommentTree)
+	router.GET("/comments/:id", cs.GetCommentTree)
+	router.GET("/comments/all", cs.GetAllComments)
+	router.GET("/comments/search", cs.SearchComments)
 	router.GET("/health", cs.HealthCheck)
 }

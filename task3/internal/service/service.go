@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,10 +40,8 @@ func (cs *CommentService) PostNewComment(ctx context.Context, req models.CreateC
 	return newCom, nil
 }
 
-func (cs *CommentService) GetCommentTree(ctx context.Context, commentID string, page int, pageSize int) (*models.CommentTreeResponse, error) {
+func (cs *CommentService) GetCommentTree(ctx context.Context, commentID string) (*models.CommentTreeResponse, error) {
 	// Убираем пагинацию для дерева
-	page = 1
-	pageSize = MaxCommentsOnPage
 
 	// Получаем все комментарии дерева
 	allTreeComments, err := cs.repo.GetCommentTree(ctx, commentID)
@@ -61,70 +58,33 @@ func (cs *CommentService) GetCommentTree(ctx context.Context, commentID string, 
 		return &models.CommentTreeResponse{
 			Comments:   []*models.Comment{},
 			Total:      0,
-			Page:       page,
-			PageSize:   pageSize,
-			TotalPages: 0,
+			Page:       1,
+			PageSize:   DefaultPageSize,
+			TotalPages: 1,
 		}, nil
 	}
 
-	// Просто возвращаем все комментарии как плоский список
-	// Не строим дерево - это нарушает порядок и логику
-	flatList := make([]*models.Comment, len(allTreeComments))
-	for i, comment := range allTreeComments {
-		flatList[i] = &models.Comment{
-			ID:        comment.ID,
-			ParentID:  comment.ParentID,
-			Author:    comment.Author,
-			Content:   comment.Content,
-			CreatedAt: comment.CreatedAt,
-			UpdatedAt: comment.UpdatedAt,
-			Level:     cs.calculateLevel(allTreeComments, comment.ID),
-		}
-	}
+	// Строим дерево из плоского списка
+	tree := cs.buildTreeFromFlatList(allTreeComments)
 
+	// Преобразуем дерево в плоский список с DFS обходом
+	flatList := cs.convertTreeToFlatListDFS(tree, 0)
 	return &models.CommentTreeResponse{
 		Comments:   flatList,
 		Total:      len(flatList),
-		Page:       page,
-		PageSize:   pageSize,
+		Page:       1,
+		PageSize:   len(flatList),
 		TotalPages: 1,
 	}, nil
 }
 
-// calculateLevel вычисляет уровень вложенности для комментария
-func (cs *CommentService) calculateLevel(comments []*models.Comment, commentID string) int {
-	level := 0
-	currentID := commentID
-
-	// Находим родительские комментарии чтобы вычислить уровень
-	for {
-		var parentID string
-		// Находим текущий комментарий
-		for _, comment := range comments {
-			if comment.ID == currentID {
-				parentID = comment.ParentID
-				break
-			}
-		}
-
-		if parentID == "" {
-			break
-		}
-
-		level++
-		currentID = parentID
-	}
-
-	return level
-}
-
-func (cs *CommentService) GetAllComments(ctx context.Context, page int, pageSize int) (*models.CommentTreeResponse, error) {
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > MaxCommentsOnPage {
-		pageSize = DefaultPageSize
-	}
+func (cs *CommentService) GetAllComments(ctx context.Context) (*models.CommentTreeResponse, error) {
+	// if page <= 0 {
+	// 	page = 1
+	// }
+	// if pageSize <= 0 || pageSize > MaxCommentsOnPage {
+	// 	pageSize = DefaultPageSize
+	// }
 
 	rootComments, err := cs.repo.GetRootComments(ctx)
 	if err != nil {
@@ -133,29 +93,32 @@ func (cs *CommentService) GetAllComments(ctx context.Context, page int, pageSize
 	var allComments []*models.Comment
 	// Преобразуем в плоский список
 	for _, root := range rootComments {
-		rootTree, err := cs.GetCommentTree(ctx, root.ID, page, pageSize)
+		rootTree, err := cs.GetCommentTree(ctx, root.ID)
 		if err != nil {
 			return nil, err
 		}
 		allComments = append(allComments, rootTree.Comments...)
 	}
 	totalCount := len(allComments)
+
 	return &models.CommentTreeResponse{
 		Comments:   allComments,
 		Total:      totalCount,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: int(math.Ceil(float64(totalCount) / float64(pageSize))),
+		Page:       1,
+		PageSize:   DefaultPageSize,
+		TotalPages: 1,
 	}, nil
 }
 
-// convertToFlatListWithLevels преобразует дерево в плоский список с уровнями вложенности  TODO: разобраться почему корневым коментариям не присуждается уровень
-func (cs *CommentService) convertToFlatListWithLevels(comments []*models.Comment, baseLevel int) []*models.Comment {
-	var result []*models.Comment
+func (cs *CommentService) buildTreeFromFlatList(flatComments []*models.Comment) []*models.Comment {
+	// Создаем карту для быстрого доступа
+	commentMap := make(map[string]*models.Comment)
+	var roots []*models.Comment
 
-	for _, comment := range comments {
-		// Создаем копию без детей, но с уровнем
-		flatComment := &models.Comment{
+	// Первый проход: создаем узлы
+	for _, comment := range flatComments {
+		// Создаем копию с инициализированным срезом детей
+		node := &models.Comment{
 			ID:        comment.ID,
 			ParentID:  comment.ParentID,
 			Author:    comment.Author,
@@ -163,16 +126,54 @@ func (cs *CommentService) convertToFlatListWithLevels(comments []*models.Comment
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Deleted:   comment.Deleted,
+			Children:  []*models.Comment{}, // Важно: инициализируем!
+		}
+		commentMap[node.ID] = node
+	}
+
+	// Второй проход: строим связи
+	for _, comment := range flatComments {
+		node := commentMap[comment.ID]
+
+		if comment.ParentID != "" {
+			// Если есть родитель, добавляем к нему в детей
+			if parent, exists := commentMap[comment.ParentID]; exists {
+				parent.Children = append(parent.Children, node)
+			}
+		} else {
+			// Если родителя нет - это корневой элемент
+			roots = append(roots, node)
+		}
+	}
+
+	return roots
+}
+
+// convertToFlatListWithLevels преобразует дерево в плоский список с уровнями вложенности  TODO: разобраться почему корневым коментариям не присуждается уровень
+func (cs *CommentService) convertTreeToFlatListDFS(tree []*models.Comment, baseLevel int) []*models.Comment {
+	var result []*models.Comment
+
+	for _, node := range tree {
+		// Создаем копию узла без детей, но с уровнем
+		flatNode := &models.Comment{
+			ID:        node.ID,
+			ParentID:  node.ParentID,
+			Author:    node.Author,
+			Content:   node.Content,
+			CreatedAt: node.CreatedAt,
+			UpdatedAt: node.UpdatedAt,
+			Deleted:   node.Deleted,
 			Level:     baseLevel,
 			// Children намеренно не копируем
 		}
-		result = append(result, flatComment)
 
-		// Рекурсивно добавляем детей с увеличенным уровнем
-		if len(comment.Children) > 0 {
-			zlog.Logger.Info().Str("parrent_ID", flatComment.ID).Any("childs", comment.Children).Msg("parrent has childs")
-			childComments := cs.convertToFlatListWithLevels(comment.Children, baseLevel+1)
-			result = append(result, childComments...)
+		// Добавляем текущий узел
+		result = append(result, flatNode)
+
+		// Рекурсивно добавляем детей (DFS)
+		if len(node.Children) > 0 {
+			childNodes := cs.convertTreeToFlatListDFS(node.Children, baseLevel+1)
+			result = append(result, childNodes...)
 		}
 	}
 
@@ -192,21 +193,21 @@ func (cs *CommentService) SearchComments(ctx context.Context, phrase string, pag
 		pageSize = DefaultPageSize
 	}
 
-	comments, totalCount, err := cs.repo.SearchComments(ctx, phrase, page, pageSize)
+	allComments, totalCount, err := cs.repo.SearchComments(ctx, phrase, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
-
+	//tree := cs.buildTreeFromFlatList(allComments)
 	// Преобразуем результаты поиска в плоский список
-	flatList := cs.convertToFlatListWithLevels(comments, 0)
+	//flatList := cs.convertTreeToFlatListDFS(tree, 0)
 
 	return &models.SearchResponse{
-		Results:    flatList,
+		Results:    allComments,
 		Query:      phrase,
 		Total:      totalCount,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: int(math.Ceil(float64(totalCount) / float64(pageSize))),
+		Page:       1,
+		PageSize:   totalCount,
+		TotalPages: 1,
 	}, nil
 }
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Древовидные комментарии</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Древовидные комментарии</h1>
+        </header>
+
+        <!-- Поиск -->
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Поиск комментариев...">
+            <button onclick="searchComments()">Найти</button>
+            <button onclick="clearSearch()">Очистить</button>
+        </div>
+
+        <!-- Результаты поиска -->
+        <div id="searchResults" class="hidden">
+            <h3>Результаты поиска</h3>
+            <div id="searchResultsList"></div>
+            <button onclick="clearSearch()">Вернуться ко всем комментариям</button>
+        </div>
+
+        <!-- Дерево комментариев -->
+        <div id="commentsTree">
+            <h3>Все комментарии</h3>
+            <div id="commentsList"></div>
+        </div>
+
+        <!-- Форма добавления комментария -->
+        <div class="add-comment">
+            <h3>Добавить комментарий</h3>
+            <form id="commentForm">
+                <input type="hidden" id="parentId" value="">
+                <div>
+                    <label for="author">Имя:</label>
+                    <input type="text" id="author" required>
+                </div>
+                <div>
+                    <label for="content">Комментарий:</label>
+                    <textarea id="content" rows="3" required></textarea>
+                </div>
+                <button type="submit">Отправить</button>
+                <button type="button" onclick="cancelReply()" id="cancelReplyBtn" class="hidden">Отмена</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

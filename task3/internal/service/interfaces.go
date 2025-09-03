@@ -12,7 +12,6 @@ type Repository interface {
 	CreateComment(ctx context.Context, comment *models.Comment) error
 	// Получение комментария по ID
 	GetCommentByID(ctx context.Context, id string) (*models.Comment, error)
-
 	// Получение корневых
 	GetRootComments(ctx context.Context) ([]*models.Comment, error)
 	// Получение дерева комментариев

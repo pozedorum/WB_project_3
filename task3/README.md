@@ -1,33 +1,181 @@
+# Древовидные комментарии
 
-curl -X POST http://localhost:8080/notify \
+Асинхронный сервис для управления древовидными комментариями с возможностью поиска.
+
+## Features
+
+- Создание комментариев с поддержкой иерархии (родитель-потомок)
+- Получение всех комментариев в виде дерева
+- Получение дочерних комментариев для конкретного комментария
+- Поиск комментариев по содержимому
+- Удаление комментариев (включая все дочерние)
+- Веб-интерфейс для просмотра и управления комментариями
+
+## Prerequisites
+
+- Docker и Docker Compose
+- Go 1.19+ (для локальной разработки)
+
+## Quick Start
+
+### 1. Клонирование и запуск
+(сделать файл .env или переименовать в .env файл ".env.example")
+```bash
+git clone <repository-url>
+cd wbf
+docker-compose up -d
+```
+
+Сервис будет доступен по адресу: http://localhost:8080
+
+### 2. Настройка
+
+Создайте `.env` файл и настройте в `docker-compose.yml`:
+
+```env
+# Server
+SERVER_PORT=8080
+
+# Database
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=comments_db
+DB_SSLMODE=disable
+```
+
+### 3. Docker Compose
+
+Основные сервисы в `docker-compose.yml`:
+- app: основное приложение (Go)
+- postgres: база данных PostgreSQL
+
+## API Endpoints
+
+### Создание комментария
+```bash
+POST /comments
+Content-Type: application/json
+
+{
+    "author": "Имя пользователя",
+    "content": "Текст комментария",
+    "parent_id": "опциональный_ID_родителя"
+}
+```
+
+### Получение всех комментариев (дерево)
+```bash
+GET /comments/all
+```
+
+### Получение дочерних комментариев
+```bash
+GET /comments/{parent_id}
+```
+
+### Поиск комментариев
+```bash
+GET /comments/search?q=поисковый_запрос
+```
+
+### Удаление комментария (с дочерними)
+```bash
+DELETE /comments/{id}
+```
+
+### Health check
+```bash
+GET /health
+```
+
+## Примеры использования
+
+### Создание корневых комментариев
+```bash
+curl -X POST http://localhost:8080/comments \
   -H "Content-Type: application/json" \
   -d '{
     "author": "Arkadiy",
     "content": "Это первый комментарий"
   }'
 
-curl -X POST http://localhost:8080/notify \
+curl -X POST http://localhost:8080/comments \
   -H "Content-Type: application/json" \
   -d '{
-    "author": "Arkadiy",
+    "author": "Arkadiy", 
     "content": "Это второй комментарий"
   }'
+```
 
-curl -X POST http://localhost:8080/notify \
+### Создание ответов на комментарии
+скопируйте в parent_id тот id, что вернётся после создания комментария выше
+
+```bash
+curl -X POST http://localhost:8080/comments \
   -H "Content-Type: application/json" \
   -d '{
-    "parent_id": "8aa5c2e8-607a-4483-97fb-1af7c286649e",
+    "parent_id": "352c049c-29bb-427a-84fa-326120e49ccd",
     "author": "Jane Smith", 
     "content": "Это ответ на первый комментарий"
   }'
 
-curl -X POST http://localhost:8080/notify \
+curl -X POST http://localhost:8080/comments \
   -H "Content-Type: application/json" \
   -d '{
-    "parent_id": "cceb9839-e09e-47a7-b288-3e49e145e1bc",
+    "parent_id": "715ccc3d-e2c3-4b18-bff3-eccd446f1fce",
     "author": "Jane Smith", 
     "content": "Это ответ на второй комментарий"
   }'
-  curl http://localhost:8080/notify
-  curl http://localhost:8080/notify/all
-  curl http://localhost:8080/notify/a5ef5b85-f3cd-4eaf-a98c-c6082a51ce21
+```
+
+### Получение комментариев
+```bash
+# Получить все комментарии в виде дерева
+curl http://localhost:8080/comments/all
+
+# Получить дочерние комментарии для конкретного комментария (заменить "id" на id комментария)
+curl http://localhost:8080/comments/id
+
+# Поиск комментариев
+curl http://localhost:8080/comments/search?q=фраза
+```
+например `curl http://localhost:8080/comments/search?q=второй`
+
+
+## Веб-интерфейс
+
+После запуска сервиса откройте http://localhost:8080 в браузере для доступа к веб-интерфейсу.
+
+Возможности веб-интерфейса:
+- Просмотр всех комментариев в древовидной структуре
+- Добавление новых комментариев
+- Ответ на существующие комментарии
+- Удаление комментариев
+- Поиск по комментариям
+
+## Структура базы данных
+
+Комментарии хранятся в PostgreSQL с использованием рекурсивных запросов для построения дерева. Каждый комментарий содержит:
+- UUID идентификатор
+- Имя автора
+- Текст комментария
+- Ссылку на родительский комментарий (опционально)
+- Уровень вложенности
+- Временные метки создания и обновления
+
+## Поддержка
+
+При возникновении проблем:
+1. Проверьте логи контейнеров: `docker-compose logs app`
+2. Убедитесь, что база данных PostgreSQL запущена и доступна
+3. Проверьте корректность UUID при указании parent_id
+
+Для отладки можно использовать прямые запросы к API через curl или веб-интерфейс.
+
+
+P.S.
+Я не смог сделать постраничную навигацию, так как возникли проблемы с пагинацией.
+Не очень понимаю что значит сортировка комментариев, 
+но кроме поиска я постарался сделать так, чтобы комментарии выводились так, как они были в деревьях.
