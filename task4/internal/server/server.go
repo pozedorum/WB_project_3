@@ -7,15 +7,15 @@ import (
 )
 
 type ImageProcessServer struct {
-	service service.ImageProcessService
+	service *service.ImageProcessService
 }
 
-func New(service service.ImageProcessService) *ImageProcessServer {
+func New(service *service.ImageProcessService) *ImageProcessServer {
 	zlog.Logger.Info().Msg("Creating Image Processing Server")
 	return &ImageProcessServer{service: service}
 }
 
-func (is *ImageProcessServer) SetupRoutes(router ginext.RouterGroup) {
+func (is *ImageProcessServer) SetupRoutes(router *ginext.RouterGroup) {
 	router.Use(ginext.Logger())
 	router.Use(ginext.Recovery())
 

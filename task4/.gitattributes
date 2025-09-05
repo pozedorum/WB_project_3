@@ -1,0 +1,7 @@
+# # Правила шифрования
+# secrets/* filter=git-crypt diff=git-crypt
+# .env filter=git-crypt diff=git-crypt
+
+# # Исключения (не шифруем)
+# !.gitattributes
+# !README.md

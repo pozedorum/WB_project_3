@@ -12,6 +12,7 @@ import (
 	"image/png"
 	"strings"
 
+	"github.com/pozedorum/WB_project_3/task4/internal/models"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 
@@ -38,18 +39,18 @@ func NewDefaultProcessor() *DefaultProcessor {
 	return &DefaultProcessor{}
 }
 
-func (p *DefaultProcessor) ProcessImage(imageData []byte, opts ProcessingOptions) (*ProcessingResult, error) {
+func (p *DefaultProcessor) ProcessImage(imageData []byte, opts models.ProcessingOptions) (*models.ProcessingResult, error) {
 	start := time.Now()
 
 	img, format, err := image.Decode(bytes.NewReader(imageData))
 	if err != nil {
-		return &ProcessingResult{}, fmt.Errorf("failed to decode image: %w", err)
+		return &models.ProcessingResult{}, fmt.Errorf("failed to decode image: %w", err)
 	}
 
 	if opts.Width > 0 || opts.Height > 0 {
 		img, err = p.Resize(img, opts.Width, opts.Height)
 		if err != nil {
-			return &ProcessingResult{}, fmt.Errorf("resize failed: %v", err)
+			return &models.ProcessingResult{}, fmt.Errorf("resize failed: %v", err)
 		}
 	}
 
@@ -60,14 +61,14 @@ func (p *DefaultProcessor) ProcessImage(imageData []byte, opts ProcessingOptions
 		}
 		img, err = p.CreateThumbnail(img, size)
 		if err != nil {
-			return &ProcessingResult{}, fmt.Errorf("thumbnail creation failed: %v", err)
+			return &models.ProcessingResult{}, fmt.Errorf("thumbnail creation failed: %v", err)
 		}
 	}
 
 	if opts.WatermarkText != "" {
 		img, err = p.AddWatermark(img, opts.WatermarkText)
 		if err != nil {
-			return &ProcessingResult{}, fmt.Errorf("watermark adding failed: %v", err)
+			return &models.ProcessingResult{}, fmt.Errorf("watermark adding failed: %v", err)
 		}
 	}
 
@@ -80,7 +81,7 @@ func (p *DefaultProcessor) ProcessImage(imageData []byte, opts ProcessingOptions
 		return nil, fmt.Errorf("format conversion failed: %w", err)
 	}
 
-	return &ProcessingResult{
+	return &models.ProcessingResult{
 		ProcessedData:  processedImageData,
 		Format:         outputFormat,
 		Width:          img.Bounds().Dx(),
@@ -230,3 +231,5 @@ func (p *DefaultProcessor) ConvertFormat(originalImage image.Image, format strin
 	}
 	return buf.Bytes(), nil
 }
+
+//var _ service.ImageProcessor = (*DefaultProcessor)(nil)

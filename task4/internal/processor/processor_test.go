@@ -12,6 +12,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/pozedorum/WB_project_3/task4/internal/models"
 	"golang.org/x/image/draw"
 )
 
@@ -138,7 +139,7 @@ func TestProcessImageIntegration(t *testing.T) {
 	imageData := buf.Bytes()
 
 	// Тест полной обработки
-	opts := ProcessingOptions{
+	opts := models.ProcessingOptions{
 		Width:         50,
 		Height:        50,
 		Quality:       90,
@@ -241,7 +242,7 @@ func TestProcessImageDifferentFormats(t *testing.T) {
 			}
 
 			// Обрабатываем
-			opts := ProcessingOptions{
+			opts := models.ProcessingOptions{
 				Width:   80,
 				Height:  60,
 				Quality: tc.quality,
@@ -296,7 +297,7 @@ func TestProcessImageWithWatermarkDifferentFormats(t *testing.T) {
 				t.Fatalf("Failed to encode %s: %v", format, err)
 			}
 
-			opts := ProcessingOptions{
+			opts := models.ProcessingOptions{
 				Width:         150,
 				Height:        150,
 				Quality:       90,
@@ -334,7 +335,7 @@ func TestProcessImageThumbnailDifferentFormats(t *testing.T) {
 				t.Fatalf("Failed to encode %s: %v", format, err)
 			}
 
-			opts := ProcessingOptions{
+			opts := models.ProcessingOptions{
 				Thumbnail: true,
 				Format:    format,
 				Quality:   90,
@@ -375,7 +376,7 @@ func TestProcessImageQualitySettings(t *testing.T) {
 
 	for _, quality := range qualityLevels {
 		t.Run(fmt.Sprintf("Quality %d", quality), func(t *testing.T) {
-			opts := ProcessingOptions{
+			opts := models.ProcessingOptions{
 				Format:  "jpeg",
 				Quality: quality,
 			}
@@ -410,7 +411,7 @@ func TestProcessImageUnsupportedFormat(t *testing.T) {
 	// Создаем данные в неподдерживаемом формате (просто случайные байты)
 	invalidData := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10} // Неполный JPEG
 
-	opts := ProcessingOptions{
+	opts := models.ProcessingOptions{
 		Format: "jpeg",
 	}
 
@@ -423,7 +424,7 @@ func TestProcessImageUnsupportedFormat(t *testing.T) {
 func TestProcessImageEmptyData(t *testing.T) {
 	processor := NewDefaultProcessor()
 
-	opts := ProcessingOptions{
+	opts := models.ProcessingOptions{
 		Format: "jpeg",
 	}
 
@@ -442,7 +443,7 @@ func BenchmarkProcessImageJPEG(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	opts := ProcessingOptions{
+	opts := models.ProcessingOptions{
 		Width:   800,
 		Height:  600,
 		Quality: 90,
@@ -467,7 +468,7 @@ func BenchmarkProcessImagePNG(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	opts := ProcessingOptions{
+	opts := models.ProcessingOptions{
 		Width:  800,
 		Height: 600,
 		Format: "png",
