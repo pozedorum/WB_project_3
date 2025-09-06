@@ -29,19 +29,25 @@ type ProcessingTask struct {
 
 // ImageMetadata метаданные изображения
 type ImageMetadata struct {
-	ID             string            `json:"id"`
-	OriginalName   string            `json:"original_name"`
-	FileName       string            `json:"file_name"`
-	ProcessedName  string            `json:"processed_name"`
-	Status         string            `json:"status"` // "uploaded", "processing", "completed", "failed"
-	UploadedAt     time.Time         `json:"uploaded_at"`
-	ProcessedAt    time.Time         `json:"processed_at"`
-	ProcessingTime time.Duration     `json:"processing_time"`
-	Width          int               `json:"width"`
-	Height         int               `json:"height"`
-	Size           int64             `json:"size"`
-	Format         string            `json:"format"`
-	Options        ProcessingOptions `json:"options"`
+	ID            string            `json:"id"`
+	OriginalName  string            `json:"original_name"`
+	FileName      string            `json:"file_name"`
+	ProcessedName string            `json:"processed_name"`
+	Status        string            `json:"status"` // "uploaded", "processing", "completed", "failed"
+	UploadedAt    time.Time         `json:"uploaded_at"`
+	ProcessedAt   time.Time         `json:"processed_at"`
+	Width         int               `json:"width"`
+	Height        int               `json:"height"`
+	Size          int64             `json:"size"`
+	Format        string            `json:"format"`
+	Options       ProcessingOptions `json:"options"`
+}
+
+func (im *ImageMetadata) GetProcessingTime() time.Duration {
+	if im.UploadedAt.IsZero() || im.ProcessedAt.IsZero() {
+		return 0
+	}
+	return im.ProcessedAt.Sub(im.UploadedAt)
 }
 
 // UploadResult результат загрузки

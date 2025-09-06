@@ -5,11 +5,11 @@ import (
 
 	"github.com/pozedorum/WB_project_3/task4/internal/config"
 	"github.com/pozedorum/WB_project_3/task4/internal/processor"
+	"github.com/pozedorum/WB_project_3/task4/internal/repository"
 	"github.com/pozedorum/WB_project_3/task4/internal/server"
 	"github.com/pozedorum/WB_project_3/task4/internal/service"
 	"github.com/pozedorum/WB_project_3/task4/internal/storage"
 	"github.com/pozedorum/wbf/ginext"
-	// ... другие импорты
 )
 
 func main() {
@@ -31,12 +31,14 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialize storage: ", err)
 	}
+	// Инициализация локального хранилища
+	repo := repository.NewRepositoryInMemory()
 
 	// Инициализация процессора
 	processor := processor.NewDefaultProcessor()
 
 	// Инициализация сервиса (который вы еще, видимо, будете дописывать)
-	imageService := service.NewImageProcessService(processor, storage) // Примерно так
+	imageService := service.NewImageProcessService(repo, storage, processor, nil) // Примерно так
 
 	// Инициализация и запуск сервера
 	server := server.New(imageService)

@@ -53,7 +53,9 @@ func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte,
 
 	if err := s.repo.SaveImageMetadata(ctx, metadata); err != nil {
 		// Пытаемся удалить сохраненный файл при ошибке
-		s.storage.Delete(ctx, "originals/"+imageID)
+		deleteCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		s.storage.Delete(deleteCtx, "originals/"+imageID)
 		return nil, fmt.Errorf("failed to save metadata: %w", err)
 	}
 
@@ -153,8 +155,7 @@ func (s *ImageProcessService) ProcessImageSync(ctx context.Context, imageID stri
 	}
 
 	// Обрабатываем изображение
-	// start := time.Now()
-	result, err := s.processor.ProcessImage(imageData, models.ProcessingOptions(metadata.Options))
+	result, err := s.processor.ProcessImage(imageData, metadata.Options)
 	if err != nil {
 		s.repo.UpdateImageStatus(ctx, imageID, "failed")
 		return fmt.Errorf("image processing failed: %w", err)
@@ -170,7 +171,6 @@ func (s *ImageProcessService) ProcessImageSync(ctx context.Context, imageID stri
 	// Обновляем метаданные
 	metadata.Status = "completed"
 	metadata.ProcessedAt = time.Now()
-	metadata.ProcessingTime = result.ProcessingTime
 	metadata.Width = result.Width
 	metadata.Height = result.Height
 	metadata.Size = result.Size
