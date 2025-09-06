@@ -153,7 +153,7 @@ func (s *ImageProcessService) ProcessImageSync(ctx context.Context, imageID stri
 	}
 
 	// Обрабатываем изображение
-	start := time.Now()
+	// start := time.Now()
 	result, err := s.processor.ProcessImage(imageData, models.ProcessingOptions(metadata.Options))
 	if err != nil {
 		s.repo.UpdateImageStatus(ctx, imageID, "failed")
