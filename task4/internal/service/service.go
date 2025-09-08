@@ -7,17 +7,18 @@ import (
 
 	"github.com/pozedorum/WB_project_3/task4/internal/models"
 	"github.com/pozedorum/WB_project_3/task4/internal/storage"
+	"github.com/pozedorum/wbf/zlog"
 )
 
 type ImageProcessService struct {
 	repo      Repository
 	storage   Storage
 	processor ImageProcessor
-	queue     Queue
+	queue     ImageQueue
 }
 
 // NewImageProcessService создает новый сервис обработки изображений
-func NewImageProcessService(repo Repository, storage Storage, processor ImageProcessor, queue Queue) *ImageProcessService {
+func NewImageProcessService(repo Repository, storage Storage, processor ImageProcessor, queue ImageQueue) *ImageProcessService {
 	return &ImageProcessService{
 		repo:      repo,
 		storage:   storage,
@@ -27,7 +28,18 @@ func NewImageProcessService(repo Repository, storage Storage, processor ImagePro
 }
 
 // UploadImage загружает изображение и запускает обработку
-func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte, filename string, opts models.ProcessingOptions) (*models.UploadResult, error) {
+func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte, filename string, opts models.ProcessingOptions, callbackURL string) (*models.UploadResult, error) {
+	// Логируем полученные опции
+	zlog.Logger.Info().
+		Str("filename", filename).
+		Int("width", opts.Width).
+		Int("height", opts.Height).
+		Int("quality", opts.Quality).
+		Str("format", opts.Format).
+		Str("watermark", opts.WatermarkText).
+		Bool("thumbnail", opts.Thumbnail).
+		Msg("Received processing options")
+
 	// Генерируем ID для изображения
 	imageID := storage.GenerateFilename(filename)
 
@@ -61,19 +73,29 @@ func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte,
 
 	// Создаем задачу на обработку
 	task := &models.ProcessingTask{
-		TaskID:    imageID,
-		ImageData: imageData,
-		Options:   opts,
+		TaskID:      imageID,
+		Options:     opts,
+		CallbackURL: callbackURL,
 	}
 
+	// Логируем передачу задачи в очередь
+	zlog.Logger.Info().
+		Str("task_id", task.TaskID).
+		Interface("options", task.Options).
+		Msg("Publishing task to queue")
+
 	// Публикуем задачу в очередь
-	if err := s.queue.PublishTask(ctx, task); err != nil {
+	if err := s.queue.PublishImageTask(ctx, task); err != nil {
 		s.repo.UpdateImageStatus(ctx, imageID, "failed")
 		return nil, fmt.Errorf("failed to publish task: %w", err)
 	}
 
 	// Обновляем статус
 	s.repo.UpdateImageStatus(ctx, imageID, "processing")
+
+	zlog.Logger.Info().
+		Str("image_id", imageID).
+		Msg("Image uploaded and queued for processing")
 
 	return &models.UploadResult{
 		ImageID: imageID,
@@ -92,6 +114,10 @@ func (s *ImageProcessService) GetImage(ctx context.Context, imageID string) (*mo
 
 	// Если изображение еще обрабатывается
 	if metadata.Status != "completed" {
+		zlog.Logger.Debug().
+			Str("image_id", imageID).
+			Str("status", metadata.Status).
+			Msg("Image is still processing")
 		return &models.ImageResult{
 			Metadata: metadata,
 		}, nil
@@ -102,6 +128,11 @@ func (s *ImageProcessService) GetImage(ctx context.Context, imageID string) (*mo
 	if err != nil {
 		return nil, fmt.Errorf("failed to get processed image: %w", err)
 	}
+
+	zlog.Logger.Info().
+		Str("image_id", imageID).
+		Int("size", len(processedData)).
+		Msg("Returning processed image")
 
 	return &models.ImageResult{
 		ImageData: processedData,
@@ -137,6 +168,10 @@ func (s *ImageProcessService) DeleteImage(ctx context.Context, imageID string) e
 		return fmt.Errorf("failed to delete metadata: %w", err)
 	}
 
+	zlog.Logger.Info().
+		Str("image_id", imageID).
+		Msg("Image deleted successfully")
+
 	return nil
 }
 
@@ -147,6 +182,12 @@ func (s *ImageProcessService) ProcessImageSync(ctx context.Context, imageID stri
 	if err != nil {
 		return fmt.Errorf("image not found: %w", err)
 	}
+
+	// Логируем опции для синхронной обработки
+	zlog.Logger.Info().
+		Str("image_id", imageID).
+		Interface("options", metadata.Options).
+		Msg("Processing image synchronously")
 
 	// Получаем оригинальное изображение
 	imageData, err := s.storage.Get(ctx, metadata.FileName)

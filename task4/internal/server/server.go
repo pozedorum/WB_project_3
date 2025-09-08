@@ -20,10 +20,12 @@ func (is *ImageProcessServer) SetupRoutes(router *ginext.RouterGroup) {
 	router.Use(ginext.Recovery())
 
 	// // Статические файлы
-	// router.Static("/static", "./internal/frontend/templates")
+	router.Static("/static", "./internal/frontend/templates")
 
-	// // Главная страница
-	// router.GET("/", is.ServeFrontend)
+	// Главная страница
+	router.GET("/", func(c *ginext.Context) {
+		c.File("./internal/frontend/templates/index.html")
+	})
 
 	router.POST("/upload", is.UploadNewImage)
 	router.GET("/image/:id", is.GetProcessedImage)

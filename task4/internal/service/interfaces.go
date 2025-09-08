@@ -29,8 +29,11 @@ type Storage interface {
 }
 
 // Queue заглушка для очереди
-type Queue interface {
-	PublishTask(ctx context.Context, task *models.ProcessingTask) error
+// ImageQueue интерфейс для очереди обработки изображений
+type ImageQueue interface {
+	PublishImageTask(ctx context.Context, task *models.ProcessingTask) error
+	HealthCheck(ctx context.Context) error
+	Close() error
 }
 
 // Repository для работы с метаданными изображений

@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/wb-go/wbf/retry"
+)
 
 type FileInfo struct {
 	Path     string `json:"path"`
@@ -22,9 +26,16 @@ type ProcessingResult struct {
 // ProcessingTask задача на обработку
 type ProcessingTask struct {
 	TaskID      string
-	ImageData   []byte
 	Options     ProcessingOptions
 	CallbackURL string // URL для уведомления о завершении
+}
+
+// CallbackNotification структура для уведомления
+type CallbackNotification struct {
+	TaskID    string `json:"task_id"`
+	Status    string `json:"status"`
+	Timestamp string `json:"timestamp"`
+	Message   string `json:"message,omitempty"`
 }
 
 // ImageMetadata метаданные изображения
@@ -50,6 +61,14 @@ func (im *ImageMetadata) GetProcessingTime() time.Duration {
 	return im.ProcessedAt.Sub(im.UploadedAt)
 }
 
+// ProcessingMessage структура сообщения для Kafka
+type ProcessingMessage struct {
+	TaskID      string            `json:"task_id"`
+	Options     ProcessingOptions `json:"options"`
+	CallbackURL string            `json:"callback_url,omitempty"`
+	Timestamp   time.Time         `json:"timestamp"`
+}
+
 // UploadResult результат загрузки
 type UploadResult struct {
 	ImageID string `json:"image_id"`
@@ -73,3 +92,18 @@ type ProcessingOptions struct {
 	WatermarkText string `json:"watermark_text"`
 	Thumbnail     bool   `json:"thumbnail"`
 }
+
+var (
+	StandardStrategy         = retry.Strategy{Attempts: 3, Delay: time.Second}
+	ProduserConsumerStrategy = retry.Strategy{Attempts: 5, Delay: 2 * time.Second}
+)
+
+const (
+	StatusOK                  = 200
+	StatusAccepted            = 202
+	StatusFound               = 302
+	StatusBadRequest          = 400
+	StatusNotFound            = 404
+	StatisConflict            = 409
+	StatusInternalServerError = 500
+)

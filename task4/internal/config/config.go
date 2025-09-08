@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -13,8 +14,8 @@ import (
 type Config struct {
 	Server  ServerConfig
 	Storage StorageConfig
-
-	Retry RetryConfig
+	Retry   RetryConfig
+	Kafka   KafkaConfig
 }
 
 type ServerConfig struct {
@@ -36,23 +37,35 @@ type RetryConfig struct {
 	WorkerCount int
 }
 
+type KafkaConfig struct {
+	Brokers []string
+	Topic   string
+	GroupID string
+}
+
 func Load() *Config {
-	// Загрузка .env файла
 	if err := godotenv.Load(); err != nil {
 		zlog.Logger.Info().Msg("No .env file found, using environment variables")
 	}
+
 	useSSL, _ := strconv.ParseBool(getEnv("MINIO_USE_SSL", "false"))
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 		},
 		Storage: StorageConfig{
-			Endpoint:        getEnv("MINIO_ENDPOINT", ""),
-			AccessKeyID:     getEnv("MINIO_ACCESS_KEY", ""),
-			SecretAccessKey: getEnv("MINIO_SECRET_KEY", ""),
-			BucketName:      getEnv("MINIO_BUCKET", ""),
-			Region:          getEnv("MINIO_REGION", ""),
+			Endpoint:        getEnv("MINIO_ENDPOINT", "localhost:9000"),
+			AccessKeyID:     getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+			SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
+			BucketName:      getEnv("MINIO_BUCKET", "images"),
+			Region:          getEnv("MINIO_REGION", "us-east-1"),
 			UseSSL:          useSSL,
+		},
+		Kafka: KafkaConfig{
+			Brokers: getEnvAsList("KAFKA_BROKERS", []string{"localhost:9092"}), // Значение по умолчанию
+			Topic:   getEnv("KAFKA_TOPIC", "image-processing-tasks"),           // Значение по умолчанию
+			GroupID: getEnv("KAFKA_GROUPID", "image-processor-service"),        // Значение по умолчанию
 		},
 		Retry: RetryConfig{
 			MaxRetries:  getEnvAsInt("MAX_RETRIES", 3),
@@ -64,6 +77,7 @@ func Load() *Config {
 
 // ValidateConfig проверяет валидность конфигурации
 func (cfg *Config) ValidateConfig() error {
+	// Проверка Storage
 	if cfg.Storage.Endpoint == "" {
 		return fmt.Errorf("MINIO_ENDPOINT is required")
 	}
@@ -76,9 +90,18 @@ func (cfg *Config) ValidateConfig() error {
 	if cfg.Storage.BucketName == "" {
 		return fmt.Errorf("MINIO_BUCKET is required")
 	}
-	if cfg.Storage.Region == "" {
-		return fmt.Errorf("MINIO_REGION is required")
+
+	// Проверка Kafka
+	if len(cfg.Kafka.Brokers) == 0 {
+		return fmt.Errorf("KAFKA_BROKERS is required")
 	}
+	if cfg.Kafka.Topic == "" {
+		return fmt.Errorf("KAFKA_TOPIC is required")
+	}
+	if cfg.Kafka.GroupID == "" {
+		return fmt.Errorf("KAFKA_GROUPID is required")
+	}
+
 	return nil
 }
 
@@ -104,4 +127,18 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvAsList(key string, defaultValue []string) []string {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultValue
+	}
+
+	// Убираем пробелы и разбиваем по запятым
+	values := strings.Split(valueStr, ",")
+	for i, v := range values {
+		values[i] = strings.TrimSpace(v)
+	}
+	return values
 }
