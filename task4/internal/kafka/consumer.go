@@ -1,11 +1,9 @@
 package kafka
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -16,7 +14,6 @@ import (
 	// в пакете фреймворка нет обёртки над kafka.Message, так что нужно использовать стандартную библиотеку
 
 	wbfKafka "github.com/wb-go/wbf/kafka"
-	"github.com/wb-go/wbf/retry"
 )
 
 // KafkaTaskConsumer потребитель задач из Kafka
@@ -185,11 +182,6 @@ func (c *KafkaTaskConsumer) processMessage(ctx context.Context, msg Message) err
 		Str("format", result.Format).
 		Msg("Image task processed successfully")
 
-	// 7. (Опционально) Отправляем уведомление по CallbackURL
-	if processingMsg.CallbackURL != "" {
-		go c.sendCallbackNotification(processingMsg.CallbackURL, taskID, "completed")
-	}
-
 	return nil // Успешная обработка, ошибок нет
 }
 
@@ -220,74 +212,4 @@ func (c *KafkaTaskConsumer) worker(ctx context.Context, taskCh <-chan Message, w
 		}
 	}
 	zlog.Logger.Debug().Msg("Worker shutting down")
-}
-
-// sendCallbackNotification отправляет уведомление на callback URL
-func (c *KafkaTaskConsumer) sendCallbackNotification(callbackURL, taskID, status string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Создаем структуру для уведомления
-	notification := models.CallbackNotification{
-		TaskID:    taskID,
-		Status:    status,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
-
-	// Преобразуем в JSON
-	jsonData, err := json.Marshal(notification)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Str("task_id", taskID).Msg("Failed to marshal callback notification")
-		return
-	}
-
-	// Используем стратегию повтора из models
-	err = retry.Do(func() error {
-		return c.sendSingleCallback(ctx, callbackURL, jsonData)
-	}, models.StandardStrategy) // Или создайте отдельную стратегию для callback
-
-	if err != nil {
-		zlog.Logger.Error().
-			Err(err).
-			Str("task_id", taskID).
-			Str("callback_url", callbackURL).
-			Msg("Failed to send callback notification after retries")
-	} else {
-		zlog.Logger.Info().
-			Str("task_id", taskID).
-			Str("callback_url", callbackURL).
-			Msg("Callback notification sent successfully")
-	}
-}
-
-// sendSingleCallback отправляет одно уведомление
-func (c *KafkaTaskConsumer) sendSingleCallback(ctx context.Context, callbackURL string, jsonData []byte) error {
-	req, err := http.NewRequestWithContext(ctx, "POST", callbackURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "ImageProcessingService/1.0")
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("HTTP request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return nil // Успех
-	}
-
-	// Для 4xx ошибок не повторяем
-	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return fmt.Errorf("client error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
-	}
-
-	// Для 5xx ошибок и других - повторяем
-	return fmt.Errorf("server error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 }

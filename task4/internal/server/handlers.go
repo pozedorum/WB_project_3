@@ -99,11 +99,19 @@ func (ips *ImageProcessServer) UploadNewImage(c *ginext.Context) {
 		return
 	}
 
-	// 7. Возвращаем результат
+	// 7. Возвращаем результат с нужными полями для фронтенда
 	zlog.Logger.Info().
 		Str("image_id", result.ImageID).
 		Msg("Image upload accepted for processing")
-	c.JSON(models.StatusAccepted, result) // 202 Accepted - задача принята в обработку
+
+	// Создаем response с полями, которые ожидает фронтенд
+	response := ginext.H{
+		"image_id":           result.ImageID,
+		"result_url":         fmt.Sprintf("%s/image/%s", c.Request.Host, result.ImageID),
+		"processing_options": opts, // Добавляем опции обработки
+	}
+
+	c.JSON(models.StatusAccepted, response) // 202 Accepted
 }
 
 func (ips *ImageProcessServer) GetProcessedImage(c *ginext.Context) {
@@ -115,25 +123,14 @@ func (ips *ImageProcessServer) GetProcessedImage(c *ginext.Context) {
 		return
 	}
 
-	zlog.Logger.Info().
-		Str("image_id", imageID).
-		Msg("Request for processed image")
-
 	result, err := ips.service.GetImage(c.Request.Context(), imageID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			zlog.Logger.Warn().
-				Str("image_id", imageID).
-				Msg("Image not found")
 			c.JSON(models.StatusNotFound, ginext.H{
 				"error":    "Image not found",
 				"image_id": imageID,
 			})
 		} else {
-			zlog.Logger.Error().
-				Err(err).
-				Str("image_id", imageID).
-				Msg("Failed to get image")
 			c.JSON(models.StatusInternalServerError, ginext.H{
 				"error":   "Failed to get image",
 				"details": err.Error(),
@@ -142,28 +139,19 @@ func (ips *ImageProcessServer) GetProcessedImage(c *ginext.Context) {
 		return
 	}
 
-	// Если изображение еще обрабатывается
+	// Если изображение еще обрабатывается, возвращаем JSON с статусом и URL
 	if result.Metadata.Status != "completed" {
-		zlog.Logger.Info().
-			Str("image_id", imageID).
-			Str("status", result.Metadata.Status).
-			Msg("Image is still processing")
 		c.JSON(models.StatusOK, ginext.H{
-			"status":   result.Metadata.Status,
-			"image_id": result.Metadata.ID,
-			"message":  "Image is still being processed",
-			"metadata": result.Metadata,
+			"status":    result.Metadata.Status,
+			"image_id":  result.Metadata.ID,
+			"image_url": fmt.Sprintf("%s/image/%s", c.Request.Host, result.Metadata.ID),
+			"message":   "Image is still being processed",
 		})
 		return
 	}
 
+	// Если готово, отдаем изображение
 	contentType := getContentType(result.Metadata.Format)
-	zlog.Logger.Info().
-		Str("image_id", imageID).
-		Str("format", result.Metadata.Format).
-		Int("size", len(result.ImageData)).
-		Msg("Returning processed image data")
-
 	c.Data(models.StatusOK, contentType, result.ImageData)
 }
 
@@ -284,10 +272,6 @@ func parseProcessingOptions(c *ginext.Context) (models.ProcessingOptions, string
 			return val
 		}
 		return c.Query(key)
-	}
-	// Парсим callback URL
-	if url := c.PostForm("callbackUrl"); url != "" {
-		callbackURL = url
 	}
 	// Парсим ширину
 	if widthStr := getParam("width"); widthStr != "" {

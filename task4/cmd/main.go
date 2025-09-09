@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -61,7 +62,8 @@ func main() {
 	kafkaQueue := kafka.NewKafkaImageQueue(kafkaProducer, cfg.Kafka.Topic)
 
 	// Создание сервиса
-	imageService := service.NewImageProcessService(repo, minioStorage, imageProcessor, kafkaQueue)
+	baseURL := fmt.Sprintf("http://localhost:%s", cfg.Server.Port)
+	imageService := service.NewImageProcessService(repo, minioStorage, imageProcessor, kafkaQueue, baseURL)
 
 	// Инициализация HTTP сервера
 	imageServer := server.New(imageService)

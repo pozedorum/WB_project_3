@@ -52,6 +52,7 @@ type ImageMetadata struct {
 	Size          int64             `json:"size"`
 	Format        string            `json:"format"`
 	Options       ProcessingOptions `json:"options"`
+	ResultURL     string            `json:"result_url,omitempty"`
 }
 
 func (im *ImageMetadata) GetProcessingTime() time.Duration {
@@ -71,9 +72,10 @@ type ProcessingMessage struct {
 
 // UploadResult результат загрузки
 type UploadResult struct {
-	ImageID string `json:"image_id"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	ImageID   string `json:"image_id"`
+	Status    string `json:"status"`
+	Message   string `json:"message"`
+	ResultURL string `json:"result_url,omitempty"`
 }
 
 // ImageResult результат получения изображения
@@ -85,12 +87,12 @@ type ImageResult struct {
 
 // ProcessingOptions упрощенная версия опций
 type ProcessingOptions struct {
-	Width         int    `json:"width"`
-	Height        int    `json:"height"`
-	Quality       int    `json:"quality"`
-	Format        string `json:"format"`
-	WatermarkText string `json:"watermark_text"`
-	Thumbnail     bool   `json:"thumbnail"`
+	Width         int    `json:"width,omitempty"`
+	Height        int    `json:"height,omitempty"`
+	Quality       int    `json:"quality,omitempty"`
+	Format        string `json:"format,omitempty"`
+	WatermarkText string `json:"watermark_text,omitempty"`
+	Thumbnail     bool   `json:"thumbnail,omitempty"`
 }
 
 var (

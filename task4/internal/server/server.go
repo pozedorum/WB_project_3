@@ -15,19 +15,34 @@ func New(service *service.ImageProcessService) *ImageProcessServer {
 	return &ImageProcessServer{service: service}
 }
 
-func (is *ImageProcessServer) SetupRoutes(router *ginext.RouterGroup) {
+func (ips *ImageProcessServer) SetupRoutes(router *ginext.RouterGroup) {
 	router.Use(ginext.Logger())
 	router.Use(ginext.Recovery())
-
+	router.Use(CORSMiddleware())
 	// // Статические файлы
-	router.Static("/static", "./internal/frontend/templates")
+	router.Static("/static", "./internal/frontend/static")
 
 	// Главная страница
-	router.GET("/", func(c *ginext.Context) {
-		c.File("./internal/frontend/templates/index.html")
-	})
+	// Главная страница
+	router.GET("/", ips.ServeFrontend)
 
-	router.POST("/upload", is.UploadNewImage)
-	router.GET("/image/:id", is.GetProcessedImage)
-	router.DELETE("/image/:id", is.DeleteImage)
+	router.POST("/upload", ips.UploadNewImage)
+	router.GET("/image/:id", ips.GetProcessedImage)
+	router.DELETE("/image/:id", ips.DeleteImage)
+}
+
+func CORSMiddleware() ginext.HandlerFunc {
+	return func(c *ginext.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
 }

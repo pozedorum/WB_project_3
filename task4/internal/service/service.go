@@ -15,15 +15,17 @@ type ImageProcessService struct {
 	storage   Storage
 	processor ImageProcessor
 	queue     ImageQueue
+	baseURL   string
 }
 
 // NewImageProcessService создает новый сервис обработки изображений
-func NewImageProcessService(repo Repository, storage Storage, processor ImageProcessor, queue ImageQueue) *ImageProcessService {
+func NewImageProcessService(repo Repository, storage Storage, processor ImageProcessor, queue ImageQueue, baseURL string) *ImageProcessService {
 	return &ImageProcessService{
 		repo:      repo,
 		storage:   storage,
 		processor: processor,
 		queue:     queue,
+		baseURL:   baseURL,
 	}
 }
 
@@ -42,6 +44,8 @@ func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte,
 
 	// Генерируем ID для изображения
 	imageID := storage.GenerateFilename(filename)
+	// Создаём ссылку на результат
+	resultURL := fmt.Sprintf("%s/image/%s", s.baseURL, imageID)
 
 	// Сохраняем оригинал в хранилище
 	fileInfo, err := s.storage.Save(ctx, imageData, "originals/"+imageID)
@@ -61,6 +65,7 @@ func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte,
 		Size:         fileInfo.Size,
 		Format:       fileInfo.MimeType,
 		Options:      opts,
+		ResultURL:    resultURL,
 	}
 
 	if err := s.repo.SaveImageMetadata(ctx, metadata); err != nil {
@@ -98,9 +103,10 @@ func (s *ImageProcessService) UploadImage(ctx context.Context, imageData []byte,
 		Msg("Image uploaded and queued for processing")
 
 	return &models.UploadResult{
-		ImageID: imageID,
-		Status:  "processing",
-		Message: "Image uploaded and queued for processing",
+		ImageID:   imageID,
+		Status:    "processing",
+		Message:   "Image uploaded and queued for processing",
+		ResultURL: metadata.ResultURL,
 	}, nil
 }
 
@@ -112,14 +118,11 @@ func (s *ImageProcessService) GetImage(ctx context.Context, imageID string) (*mo
 		return nil, fmt.Errorf("image not found: %w", err)
 	}
 
-	// Если изображение еще обрабатывается
+	// Если изображение еще обрабатывается, возвращаем метаданные с URL
 	if metadata.Status != "completed" {
-		zlog.Logger.Debug().
-			Str("image_id", imageID).
-			Str("status", metadata.Status).
-			Msg("Image is still processing")
 		return &models.ImageResult{
 			Metadata: metadata,
+			ImageURL: metadata.ResultURL, // Всегда возвращаем URL
 		}, nil
 	}
 
@@ -129,14 +132,10 @@ func (s *ImageProcessService) GetImage(ctx context.Context, imageID string) (*mo
 		return nil, fmt.Errorf("failed to get processed image: %w", err)
 	}
 
-	zlog.Logger.Info().
-		Str("image_id", imageID).
-		Int("size", len(processedData)).
-		Msg("Returning processed image")
-
 	return &models.ImageResult{
 		ImageData: processedData,
 		Metadata:  metadata,
+		ImageURL:  metadata.ResultURL, // URL для скачивания
 	}, nil
 }
 
