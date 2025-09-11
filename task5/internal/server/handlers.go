@@ -16,6 +16,7 @@ func (serv *EventBookerServer) CreateEvent(c *ginext.Context) {
 		c.JSON(models.StatusBadRequest, ginext.H{"error": err.Error()})
 		return
 	}
+
 }
 
 func (serv *EventBookerServer) BookEvent(c *ginext.Context) {
@@ -30,8 +31,8 @@ func (serv *EventBookerServer) GetEventInformation(c *ginext.Context) {
 
 }
 
-func parseProcessingOptions(c *ginext.Context) (*models.EventInformation, error) {
-	infoStruct := &models.EventInformation{}
+func parseProcessingOptions(c *ginext.Context) (*models.EventRequest, error) {
+	infoStruct := &models.EventRequest{}
 	// Вспомогательная функция для получения значения из form-data или query string
 	getParam := func(key string) string {
 		if val := c.PostForm(key); val != "" {
