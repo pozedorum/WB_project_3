@@ -7,9 +7,8 @@ import (
 )
 
 type Repository interface {
-	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
-	CheckUserExistsByID(ctx context.Context, userID int) (bool, error)
 	GetUserByID(ctx context.Context, userID int) (*models.UserInformation, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.UserInformation, error)
 
 	CreateUser(ctx context.Context, user *models.UserInformation) error
 	GetUserHash(ctx context.Context, email string) (string, error)

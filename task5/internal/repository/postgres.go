@@ -44,39 +44,15 @@ func (repo *EventBookerRepository) WithTransaction(ctx context.Context, fn func(
 	return nil
 }
 
-// CheckUserExistsByEmail - проверка по email (для регистрации)
-func (repo *EventBookerRepository) CheckUserExistsByEmail(ctx context.Context, email string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
-	var exists bool
-	err := repo.db.Master.QueryRowContext(ctx, query, email).Scan(&exists)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Str("email", email).Msg("Failed to check user existence by email")
-		return false, err
-	}
-	return exists, nil
-}
-
-// CheckUserExistsByID - проверка по ID (для операций с существующими пользователями)
-func (repo *EventBookerRepository) CheckUserExistsByID(ctx context.Context, userID int) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
-	var exists bool
-	err := repo.db.Master.QueryRowContext(ctx, query, userID).Scan(&exists)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to check user existence by ID")
-		return false, err
-	}
-	return exists, nil
-}
-
-// GetUserByID - получение пользователя по ID (если нужна полная информация)
 func (repo *EventBookerRepository) GetUserByID(ctx context.Context, userID int) (*models.UserInformation, error) {
-	query := `SELECT id, email, name, phone, email_verified, created_at, updated_at 
+	query := `SELECT id, email, password_hash, name, phone, email_verified, created_at, updated_at 
               FROM users WHERE id = $1`
 
 	var user models.UserInformation
 	err := repo.db.Master.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Email,
+		&user.PasswordHash,
 		&user.Name,
 		&user.Phone,
 		&user.CreatedAt,
@@ -85,15 +61,40 @@ func (repo *EventBookerRepository) GetUserByID(ctx context.Context, userID int) 
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+			return nil, models.ErrUserNotFound
 		}
 		zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to get user by ID")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	return &user, nil
 }
 
+func (repo *EventBookerRepository) GetUserByEmail(ctx context.Context, email string) (*models.UserInformation, error) {
+	query := `SELECT id, email, password_hash, name, phone, email_verified, created_at, updated_at 
+              FROM users WHERE email = $1`
+
+	var user models.UserInformation
+	err := repo.db.Master.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Name,
+		&user.Phone,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, models.ErrUserNotFound
+		}
+		zlog.Logger.Error().Err(err).Str("email", email).Msg("Failed to get user by email")
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return &user, nil
+}
 func (repo *EventBookerRepository) CreateUser(ctx context.Context, n *models.UserInformation) error {
 	return repo.WithTransaction(ctx, func(tx *sql.Tx) error {
 		createQuery := `INSERT INTO users (email, password_hash, name, phone)

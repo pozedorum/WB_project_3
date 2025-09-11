@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pozedorum/WB_project_3/task5/internal/models"
+	"github.com/pozedorum/WB_project_3/task5/pkg/logger"
 	"github.com/wb-go/wbf/zlog"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,18 +17,16 @@ type EventBookerService struct {
 
 func (servs *EventBookerService) RegisterUser(ctx context.Context, req *models.UserRegisterRequest) (*models.UserInformation, error) {
 
-	exists, err := servs.repo.CheckUserExistsByEmail(ctx, req.Email)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to check if user exists")
-		return nil, err
+	var err error
+	if _, err = servs.repo.GetUserByEmail(ctx, req.Email); err == nil {
+		return nil, models.ErrUserAlreadyRegistered
 	}
-	if exists {
-		zlog.Logger.Warn().Str("email", req.Email).Msg("user already exists")
-		return nil, fmt.Errorf("user already exists")
+	if err != models.ErrEventNotFound {
+		return nil, err
 	}
 	pHash, err := HashPassword(req.Password)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to hash password")
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to hash password") })
 		return nil, err
 	}
 	newUser := &models.UserInformation{
@@ -38,19 +37,34 @@ func (servs *EventBookerService) RegisterUser(ctx context.Context, req *models.U
 	}
 	err = servs.repo.CreateUser(ctx, newUser)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to create user")
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to create user") })
 		return nil, err
 	}
 	return newUser, nil
 }
 
 func (servs *EventBookerService) AuthUser(ctx context.Context, req *models.UserLoginRequest) (*models.UserInformation, error) {
+	var dbUser *models.UserInformation
+	var err error
+	if dbUser, err = servs.repo.GetUserByEmail(ctx, req.Email); err != nil {
+		return nil, err
+	}
+	reqHash, err := HashPassword(req.Password)
+	if err != nil {
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to hash password") })
+		return nil, err
+	}
 
+	if reqHash != dbUser.PasswordHash {
+		logger.LogService(func() { zlog.Logger.Warn().Msg("password hashes do not match") })
+		return nil, models.ErrWrongPassword
+	}
+	return dbUser, nil
 }
 
 func (servs *EventBookerService) CreateEvent(ctx context.Context, req *models.EventRequest, userID int) (*models.EventInformation, error) {
 	var err error
-	if err = servs.CheckUserExistsByID(ctx, userID); err != nil {
+	if _, err = servs.CheckUserExistsByID(ctx, userID); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +78,7 @@ func (servs *EventBookerService) CreateEvent(ctx context.Context, req *models.Ev
 		CreatedBy:      userID,
 	}
 	if err = servs.repo.CreateEvent(ctx, newEvent); err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to create event")
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to create event") })
 		return nil, err
 	}
 
@@ -73,12 +87,12 @@ func (servs *EventBookerService) CreateEvent(ctx context.Context, req *models.Ev
 
 func (servs *EventBookerService) BookEvent(ctx context.Context, req *models.BookingRequest, userID int) (*models.BookingInformation, error) {
 	var err error
-	if err = servs.CheckUserExistsByID(ctx, userID); err != nil {
+	if _, err = servs.CheckUserExistsByID(ctx, userID); err != nil {
 		return nil, err
 	}
 
 	if _, err = servs.repo.GetEventByID(ctx, req.EventID); err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to get event by id")
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to get event by id") })
 		return nil, err
 	}
 	booking := models.BookingInformation{
@@ -89,24 +103,39 @@ func (servs *EventBookerService) BookEvent(ctx context.Context, req *models.Book
 		BookingCode: uuid.NewString(),
 	}
 	if err = servs.repo.CreateBookingWithSeatUpdate(ctx, &booking); err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to create booking")
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to create booking") })
 		return nil, err
 	}
 
 	return &booking, nil
 }
 
-func (servs *EventBookerService) CheckUserExistsByID(ctx context.Context, userID int) error {
-	exists, err := servs.repo.CheckUserExistsByID(ctx, userID)
+func (servs *EventBookerService) CheckUserExistsByID(ctx context.Context, userID int) (*models.UserInformation, error) {
+	user, err := servs.repo.GetUserByID(ctx, userID)
+	if err == models.ErrUserNotFound {
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("user not found") })
+		return nil, err
+	}
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to check if user exists")
-		return err
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to check if user exists") })
+		return nil, err
 	}
-	if !exists {
-		zlog.Logger.Error().Int("user_id", userID).Msg("user does not exists")
-		return fmt.Errorf("user does not exists")
+
+	return user, nil
+}
+
+func (servs *EventBookerService) CheckUserExistsByEmail(ctx context.Context, email string) (*models.UserInformation, error) {
+	user, err := servs.repo.GetUserByEmail(ctx, email)
+	if err == models.ErrUserNotFound {
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("user not found") })
+		return nil, err
 	}
-	return nil
+	if err != nil {
+		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to check if user exists") })
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func HashPassword(password string) (string, error) {
