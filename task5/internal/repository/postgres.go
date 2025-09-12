@@ -95,26 +95,6 @@ func (repo *EventBookerRepository) GetUserByEmail(ctx context.Context, email str
 
 	return &user, nil
 }
-func (repo *EventBookerRepository) CreateUser(ctx context.Context, n *models.UserInformation) error {
-	return repo.WithTransaction(ctx, func(tx *sql.Tx) error {
-		createQuery := `INSERT INTO users (email, password_hash, name, phone)
-                        VALUES($1, $2, $3, $4) 
-                        RETURNING id, created_at, updated_at`
-		err := tx.QueryRowContext(ctx, createQuery,
-			n.Email,
-			n.PasswordHash,
-			n.Name,
-			n.Phone).
-			Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
-		if err != nil {
-			zlog.Logger.Error().Err(err).Str("email", n.Email).Msg("Failed to create user")
-			return err
-		}
-
-		zlog.Logger.Info().Str("email", n.Email).Int("user_id", n.ID).Msg("User created successfully")
-		return nil
-	})
-}
 
 func (repo *EventBookerRepository) GetUserHash(ctx context.Context, email string) (string, error) {
 	selectQuery := `SELECT password_hash FROM users WHERE email = $1`
@@ -134,6 +114,106 @@ func (repo *EventBookerRepository) GetUserHash(ctx context.Context, email string
 		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return userHash, nil
+}
+
+func (repo *EventBookerRepository) GetEventByID(ctx context.Context, id int) (*models.EventInformation, error) {
+	selectQuery := `SELECT name,date,cost, total_seats, available_seats,booking_lifespan_minutes, created_by, created_at, updated_at
+	FROM events WHERE id = $1`
+	var res models.EventInformation
+	err := repo.db.Master.QueryRowContext(ctx, selectQuery, id).Scan(&res.Name, &res.Date, &res.Cost,
+		&res.TotalSeats, &res.AvailableSeats, &res.LifeSpan, &res.CreatedBy, &res.CreatedAt, &res.UpdatedAt)
+	if err != nil {
+		zlog.Logger.Error().Err(err).Int("id", id).Msg("Failed to get event")
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.EventInformation, error) {
+	query := `SELECT id, name, date, cost, total_seats, available_seats, 
+                     booking_lifespan_minutes, created_by, created_at, updated_at
+              FROM events 
+              ORDER BY created_at DESC`
+
+	var events []*models.EventInformation
+	rows, err := repo.db.Master.QueryContext(ctx, query)
+	if err != nil {
+		zlog.Logger.Error().Err(err).Msg("Failed to get all events")
+		return nil, fmt.Errorf("failed to get events: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var event models.EventInformation
+		err := rows.Scan(
+			&event.ID,
+			&event.Name,
+			&event.Date,
+			&event.Cost,
+			&event.TotalSeats,
+			&event.AvailableSeats,
+			&event.LifeSpan,
+			&event.CreatedBy,
+			&event.CreatedAt,
+			&event.UpdatedAt,
+		)
+		if err != nil {
+			zlog.Logger.Error().Err(err).Msg("Failed to scan event")
+			continue
+		}
+		events = append(events, &event)
+	}
+
+	if err := rows.Err(); err != nil {
+		zlog.Logger.Error().Err(err).Msg("Error iterating events")
+		return nil, fmt.Errorf("error iterating events: %w", err)
+	}
+
+	zlog.Logger.Info().Int("count", len(events)).Msg("Retrieved all events")
+	return events, nil
+}
+
+func (repo *EventBookerRepository) GetBookingByCode(ctx context.Context, bookingCode string) (*models.BookingInformation, error) {
+	selectQuery := `SELECT id, event_id, user_id, seat_count, status, booking_code,
+                           created_at, expires_at, confirmed_at
+                    FROM bookings 
+                    WHERE booking_code = $1`
+	var booking models.BookingInformation
+	err := repo.db.Master.QueryRowContext(ctx, selectQuery).Scan(
+		&booking.ID, &booking.EventID, &booking.UserID, &booking.SeatCount,
+		&booking.Status, &booking.BookingCode, &booking.CreatedAt,
+		&booking.ExpiresAt, &booking.ConfirmedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, models.ErrBookingNotFound // ← ДОБАВИТЬ обработку "не найдено"
+		}
+		zlog.Logger.Error().Err(err).Msg("Failed to get booking")
+		return nil, err
+	}
+	return &booking, nil
+
+}
+
+func (repo *EventBookerRepository) CreateUser(ctx context.Context, n *models.UserInformation) error {
+	return repo.WithTransaction(ctx, func(tx *sql.Tx) error {
+		createQuery := `INSERT INTO users (email, password_hash, name, phone)
+                        VALUES($1, $2, $3, $4) 
+                        RETURNING id, created_at, updated_at`
+		err := tx.QueryRowContext(ctx, createQuery,
+			n.Email,
+			n.PasswordHash,
+			n.Name,
+			n.Phone).
+			Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
+		if err != nil {
+			zlog.Logger.Error().Err(err).Str("email", n.Email).Msg("Failed to create user")
+			return err
+		}
+
+		zlog.Logger.Info().Str("email", n.Email).Int("user_id", n.ID).Msg("User created successfully")
+		return nil
+	})
 }
 
 func (repo *EventBookerRepository) CreateEvent(ctx context.Context, n *models.EventInformation) error {
@@ -164,19 +244,6 @@ func (repo *EventBookerRepository) CreateEvent(ctx context.Context, n *models.Ev
 	})
 }
 
-func (repo *EventBookerRepository) GetEventByID(ctx context.Context, id int) (*models.EventInformation, error) {
-	selectQuery := `SELECT name,date,cost, total_seats, available_seats,booking_lifespan_minutes, created_by, created_at, updated_at
-	FROM events WHERE id = $1`
-	var res models.EventInformation
-	err := repo.db.Master.QueryRowContext(ctx, selectQuery, id).Scan(&res.Name, &res.Date, &res.Cost,
-		&res.TotalSeats, &res.AvailableSeats, &res.LifeSpan, &res.CreatedBy, &res.CreatedAt, &res.UpdatedAt)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Int("id", id).Msg("Failed to get event")
-		return nil, err
-	}
-	return &res, nil
-}
-
 func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Context, booking *models.BookingInformation) error {
 	return repo.WithTransaction(ctx, func(tx *sql.Tx) error {
 		// 1. Проверяем и блокируем доступные места
@@ -185,7 +252,7 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
 		err := tx.QueryRowContext(ctx, selectQuery, booking.EventID).Scan(&availableSeats)
 		if err != nil {
 			zlog.Logger.Error().Err(err).Int("event_id", booking.EventID).Msg("Failed to get event seats")
-			return fmt.Errorf("event not found")
+			return models.ErrEventNotFound
 		}
 
 		// 2. Проверяем достаточно ли мест
@@ -194,7 +261,7 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
 				Int("requested", booking.SeatCount).
 				Int("available", availableSeats).
 				Msg("Not enough seats available")
-			return fmt.Errorf("not enough seats available")
+			return models.ErrNotEnoughAvailableSeats
 		}
 
 		// 3. Уменьшаем количество свободных мест
@@ -241,6 +308,13 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
 	})
 }
 
+func (repo *EventBookerRepository) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
+	var exists bool
+	err := repo.db.Master.QueryRowContext(ctx, query, email).Scan(&exists)
+	return exists, err
+}
+
 func (repo *EventBookerRepository) ConfirmBooking(ctx context.Context, bookingCode string) error {
 	return repo.WithTransaction(ctx, func(tx *sql.Tx) error {
 		// 1. Находим бронь и блокируем ее
@@ -252,7 +326,7 @@ func (repo *EventBookerRepository) ConfirmBooking(ctx context.Context, bookingCo
 		if err != nil {
 			if err == sql.ErrNoRows {
 				zlog.Logger.Warn().Str("booking_code", bookingCode).Msg("Booking not found or already processed")
-				return fmt.Errorf("booking not found")
+				return models.ErrBookingNotFound
 			}
 			zlog.Logger.Error().Err(err).Str("booking_code", bookingCode).Msg("Failed to find booking")
 			return err
@@ -347,11 +421,4 @@ func (repo *EventBookerRepository) CancelBooking(ctx context.Context, bookingID 
 	})
 }
 
-func (repo *EventBookerRepository) CheckEmailExists(ctx context.Context, email string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
-	var exists bool
-	err := repo.db.Master.QueryRowContext(ctx, query, email).Scan(&exists)
-	return exists, err
-}
-
-//var _ service.Repository = (*EventBookerRepository)(nil)
+// var _ service.Repository = (*EventBookerRepository)(nil)

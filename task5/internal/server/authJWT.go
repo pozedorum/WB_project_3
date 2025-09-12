@@ -1,0 +1,131 @@
+package server
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/wb-go/wbf/ginext"
+	"github.com/wb-go/wbf/zlog"
+)
+
+// JWTConfig конфигурация JWT
+
+// JWTAuthMiddleware middleware для проверки JWT токена
+func (serv *EventBookerServer) JWTAuthMiddleware() ginext.HandlerFunc {
+	return func(c *ginext.Context) {
+		// Извлекаем токен из заголовка Authorization
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(401, ginext.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		// Проверяем формат "Bearer <token>"
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(401, ginext.H{"error": "Authorization header format must be 'Bearer <token>'"})
+			c.Abort()
+			return
+		}
+
+		tokenString := parts[1]
+
+		// Парсим и валидируем токен
+		userID, err := serv.parseJWTToken(tokenString)
+		if err != nil {
+			c.JSON(401, ginext.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Сохраняем userID в контекст для использования в хэндлерах
+		c.Set("userID", userID)
+		c.Next()
+	}
+}
+
+// parseJWTToken парсит и валидирует JWT токен
+func (serv *EventBookerServer) parseJWTToken(tokenString string) (int, error) {
+	// Парсим токен с валидацией
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Проверяем метод подписи
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(serv.jwtConfig.SecretKey), nil
+	})
+
+	if err != nil {
+		zlog.Logger.Error().Err(err).Msg("Failed to parse JWT token")
+		return 0, fmt.Errorf("invalid token: %w", err)
+	}
+
+	// Проверяем валидность токена
+	if !token.Valid {
+		zlog.Logger.Warn().Msg("Invalid JWT token")
+		return 0, fmt.Errorf("invalid token")
+	}
+
+	// Извлекаем claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		zlog.Logger.Error().Msg("Failed to extract claims from JWT token")
+		return 0, fmt.Errorf("invalid token claims")
+	}
+
+	// Извлекаем userID
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		zlog.Logger.Error().Msg("User ID not found in JWT claims")
+		return 0, fmt.Errorf("user ID not found in token")
+	}
+
+	userID := int(userIDFloat)
+
+	// Проверяем expiration
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		zlog.Logger.Error().Msg("Expiration not found in JWT claims")
+		return 0, fmt.Errorf("expiration not found in token")
+	}
+
+	if time.Now().Unix() > int64(exp) {
+		zlog.Logger.Warn().Int("user_id", userID).Msg("JWT token expired")
+		return 0, fmt.Errorf("token expired")
+	}
+
+	return userID, nil
+}
+
+// generateJWTToken создает JWT токен для пользователя (только для использования в хэндлерах)
+func (serv *EventBookerServer) generateJWTToken(userID int) (string, time.Time, error) {
+	// Создаем claims с данными пользователя
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(serv.jwtConfig.TokenLifespan).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+
+	// Создаем токен с claims
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Подписываем токен с использованием секретного ключа
+	tokenString, err := token.SignedString([]byte(serv.jwtConfig.SecretKey))
+	if err != nil {
+		zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to sign JWT token")
+		return "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	// Вычисляем время истечения
+	expiresAt := time.Now().Add(serv.jwtConfig.TokenLifespan)
+
+	zlog.Logger.Info().
+		Int("user_id", userID).
+		Time("expires_at", expiresAt).
+		Msg("JWT token generated successfully")
+
+	return tokenString, expiresAt, nil
+}

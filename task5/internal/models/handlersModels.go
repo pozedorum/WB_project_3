@@ -33,5 +33,6 @@ type BookingRequest struct {
 
 type ConfirmBookingRequest struct {
 	BookingCode string `json:"booking_code" binding:"required"`
+
 	// или EventID + UserID для подтверждения
 }

@@ -2,15 +2,17 @@ package server
 
 import (
 	"github.com/pozedorum/WB_project_3/task5/internal/service"
+	"github.com/pozedorum/WB_project_3/task5/pkg/config"
 	"github.com/wb-go/wbf/ginext"
 )
 
 type EventBookerServer struct {
-	service service.EventBookerService
+	service   *service.EventBookerService
+	jwtConfig *config.JWTConfig
 }
 
-func New(service service.EventBookerService) *EventBookerServer {
-	return &EventBookerServer{service: service}
+func New(service *service.EventBookerService, jwtConfig *config.JWTConfig) *EventBookerServer {
+	return &EventBookerServer{service: service, jwtConfig: jwtConfig}
 }
 
 func (serv *EventBookerServer) SetupRoutes(router *ginext.RouterGroup) {
@@ -23,11 +25,20 @@ func (serv *EventBookerServer) SetupRoutes(router *ginext.RouterGroup) {
 
 	// // Главная страница
 	// router.GET("/", serv.ServeFrontend)
-
-	router.POST("/events", serv.CreateEvent)
-	router.POST("/events/:id/book", serv.BookEvent)
-	router.POST("/events/:id/confirm", serv.ConfirmBooking)
+	// Public routes (без аутентификации)
+	router.POST("/register", serv.RegisterUser)
+	router.POST("/login", serv.LoginUser)
+	router.GET("/events", serv.GetAllEvents)
 	router.GET("/events/:id", serv.GetEventInformation)
+
+	// Protected routes (требуют аутентификации)
+	protected := router.Group("/")
+	protected.Use(serv.JWTAuthMiddleware())
+	{
+		protected.POST("/events", serv.CreateEvent)
+		protected.POST("/events/:id/book", serv.BookEvent)
+		protected.POST("/events/:id/confirm", serv.ConfirmBooking)
+	}
 }
 
 func CORSMiddleware() ginext.HandlerFunc {

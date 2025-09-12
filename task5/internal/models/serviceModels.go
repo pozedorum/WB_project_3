@@ -19,7 +19,7 @@ type UserInformation struct {
 type EventInformation struct {
 	ID             int           `json:"id" db:"id"`
 	Name           string        `json:"name" binding:"required" db:"name"`
-	Date           time.Time     `json:"date" binding:"required" db:"total_seats"`
+	Date           time.Time     `json:"date" binding:"required" db:"date"`
 	Cost           int           `json:"cost" db:"cost"`
 	TotalSeats     int           `json:"total_seats" binding:"required,min=1" db:"total_seats"`
 	AvailableSeats int           `json:"-" db:"available_seats"`
