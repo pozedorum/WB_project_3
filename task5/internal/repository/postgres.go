@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/pozedorum/WB_project_3/task5/internal/models"
 	"github.com/wb-go/wbf/dbpg"
@@ -26,6 +27,20 @@ func NewEventBookerRepository(db *dbpg.DB) *EventBookerRepository {
 	return &EventBookerRepository{db: db}
 }
 
+func (repo *EventBookerRepository) Close() {
+	if err := repo.db.Master.Close(); err != nil {
+		zlog.Logger.Panic().Msg("Database failed to close")
+	}
+	for _, slave := range repo.db.Slaves {
+		if slave != nil {
+			if err := slave.Close(); err != nil {
+				zlog.Logger.Panic().Msg("Slave database failed to close")
+			}
+		}
+	}
+	zlog.Logger.Info().Msg("PostgreSQL connections closed")
+}
+
 // WithTransaction выполняет функцию в транзакции
 func (repo *EventBookerRepository) WithTransaction(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := repo.db.Master.BeginTx(ctx, nil)
@@ -45,7 +60,7 @@ func (repo *EventBookerRepository) WithTransaction(ctx context.Context, fn func(
 }
 
 func (repo *EventBookerRepository) GetUserByID(ctx context.Context, userID int) (*models.UserInformation, error) {
-	query := `SELECT id, email, password_hash, name, phone, email_verified, created_at, updated_at 
+	query := `SELECT id, email, password_hash, name, phone, created_at, updated_at 
               FROM users WHERE id = $1`
 
 	var user models.UserInformation
@@ -71,7 +86,7 @@ func (repo *EventBookerRepository) GetUserByID(ctx context.Context, userID int) 
 }
 
 func (repo *EventBookerRepository) GetUserByEmail(ctx context.Context, email string) (*models.UserInformation, error) {
-	query := `SELECT id, email, password_hash, name, phone, email_verified, created_at, updated_at 
+	query := `SELECT id, email, password_hash, name, phone, created_at, updated_at 
               FROM users WHERE email = $1`
 
 	var user models.UserInformation
@@ -117,15 +132,26 @@ func (repo *EventBookerRepository) GetUserHash(ctx context.Context, email string
 }
 
 func (repo *EventBookerRepository) GetEventByID(ctx context.Context, id int) (*models.EventInformation, error) {
-	selectQuery := `SELECT name,date,cost, total_seats, available_seats,booking_lifespan_minutes, created_by, created_at, updated_at
-	FROM events WHERE id = $1`
+	selectQuery := `SELECT name, date, cost, total_seats, available_seats, 
+                    booking_lifespan_minutes, created_by, created_at, updated_at
+                    FROM events WHERE id = $1`
+
 	var res models.EventInformation
-	err := repo.db.Master.QueryRowContext(ctx, selectQuery, id).Scan(&res.Name, &res.Date, &res.Cost,
-		&res.TotalSeats, &res.AvailableSeats, &res.LifeSpan, &res.CreatedBy, &res.CreatedAt, &res.UpdatedAt)
+	var lifespanMinutes int // ← Храним минуты как число
+
+	err := repo.db.Master.QueryRowContext(ctx, selectQuery, id).Scan(
+		&res.Name, &res.Date, &res.Cost,
+		&res.TotalSeats, &res.AvailableSeats, &lifespanMinutes, // ← Сканируем в минуты
+		&res.CreatedBy, &res.CreatedAt, &res.UpdatedAt)
+
 	if err != nil {
 		zlog.Logger.Error().Err(err).Int("id", id).Msg("Failed to get event")
 		return nil, err
 	}
+
+	// Конвертируем минуты обратно в Duration
+	res.LifeSpan = time.Duration(lifespanMinutes) * time.Minute
+	zlog.Logger.Info().Int("lifespan_minutes_from_table", lifespanMinutes).Dur("lifespan_duration", res.LifeSpan).Msg("getEventByID")
 	return &res, nil
 }
 
@@ -145,6 +171,8 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 
 	for rows.Next() {
 		var event models.EventInformation
+		var lifespanMinutes int // ← Добавляем временную переменную
+
 		err := rows.Scan(
 			&event.ID,
 			&event.Name,
@@ -152,7 +180,7 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 			&event.Cost,
 			&event.TotalSeats,
 			&event.AvailableSeats,
-			&event.LifeSpan,
+			&lifespanMinutes, // ← Сканируем минуты
 			&event.CreatedBy,
 			&event.CreatedAt,
 			&event.UpdatedAt,
@@ -161,6 +189,10 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 			zlog.Logger.Error().Err(err).Msg("Failed to scan event")
 			continue
 		}
+
+		// Конвертируем обратно в Duration
+		event.LifeSpan = time.Duration(lifespanMinutes) * time.Minute
+
 		events = append(events, &event)
 	}
 
@@ -169,7 +201,6 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 		return nil, fmt.Errorf("error iterating events: %w", err)
 	}
 
-	zlog.Logger.Info().Int("count", len(events)).Msg("Retrieved all events")
 	return events, nil
 }
 
@@ -179,7 +210,7 @@ func (repo *EventBookerRepository) GetBookingByCode(ctx context.Context, booking
                     FROM bookings 
                     WHERE booking_code = $1`
 	var booking models.BookingInformation
-	err := repo.db.Master.QueryRowContext(ctx, selectQuery).Scan(
+	err := repo.db.Master.QueryRowContext(ctx, selectQuery, bookingCode).Scan(
 		&booking.ID, &booking.EventID, &booking.UserID, &booking.SeatCount,
 		&booking.Status, &booking.BookingCode, &booking.CreatedAt,
 		&booking.ExpiresAt, &booking.ConfirmedAt,
@@ -379,8 +410,12 @@ func (repo *EventBookerRepository) GetExpiredBookings(ctx context.Context) ([]*m
 		zlog.Logger.Error().Err(err).Msg("Error iterating expired bookings")
 		return nil, err
 	}
+	if len(bookings) != 0 {
+		zlog.Logger.Info().Int("count", len(bookings)).Msg("Found expired bookings")
+	} else {
+		zlog.Logger.Info().Msg("No bookings expired")
+	}
 
-	zlog.Logger.Info().Int("count", len(bookings)).Msg("Found expired bookings")
 	return bookings, nil
 }
 

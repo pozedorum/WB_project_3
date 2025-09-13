@@ -1,31 +1,31 @@
 .PHONY: build run test clean migrate
 
 build:
-	docker-compose build
+	docker compose build
 
 run:
-	docker-compose up
+	docker compose up
 
 lint:
 	golangci-lint run ./...
 	go vet ./...
 
 rebuild:
-	docker-compose down -v
-	docker-compose up --build
+	docker compose down -v
+	docker compose up --build
 	
 run-detached:
-	docker-compose up -d
+	docker compose up -d
 
 stop:
-	docker-compose down
+	docker compose down
 
 logs:
-	docker-compose logs -f app
+	docker compose logs -f app
 
 clean:
-	docker-compose down -v
+	docker compose down -v
 	rm -f event_booker
 
 migrate:
-	docker-compose exec postgres psql -U postgres -d event_booker -f /docker-entrypoint-initdb.d/init.sql
+	docker compose exec postgres psql -U postgres -d event_booker -f /docker-entrypoint-initdb.d/init.sql

@@ -17,6 +17,10 @@ type EventBookerService struct {
 	repo Repository
 }
 
+func NewEventBookerService(repo Repository) *EventBookerService {
+	return &EventBookerService{repo: repo}
+}
+
 func (servs *EventBookerService) RegisterUser(ctx context.Context, req *models.UserRegisterRequest) (*models.UserInformation, error) {
 
 	var err error
@@ -65,14 +69,20 @@ func (servs *EventBookerService) CreateEvent(ctx context.Context, req *models.Ev
 	if _, err = servs.CheckUserExistsByID(ctx, userID); err != nil {
 		return nil, err
 	}
-
+	lifespan, err := time.ParseDuration(req.LifeSpan)
+	if err != nil {
+		return nil, fmt.Errorf("invalid life_span format: %w", err)
+	}
+	logger.LogService(func() {
+		zlog.Logger.Info().Str("str_event_lifespan", req.LifeSpan).Dur("event_lifespan", lifespan).Msg("event_lifespan!!!!!!")
+	})
 	newEvent := &models.EventInformation{
 		Name:           req.Name,
 		Date:           req.Date,
 		Cost:           req.Cost,
 		TotalSeats:     req.TotalSeats,
 		AvailableSeats: req.TotalSeats,
-		LifeSpan:       req.LifeSpan,
+		LifeSpan:       lifespan,
 		CreatedBy:      userID,
 	}
 	if err = servs.repo.CreateEvent(ctx, newEvent); err != nil {
@@ -158,10 +168,23 @@ func (servs *EventBookerService) BookEvent(ctx context.Context, req *models.Book
 		logger.LogService(func() { zlog.Logger.Error().Err(err).Msg("failed to get event by id") })
 		return nil, err
 	}
+
+	logger.LogService(func() {
+		zlog.Logger.Info().
+			Str("event_name", event.Name).
+			Dur("event_lifespan", event.LifeSpan).
+			Int("lifespan_minutes", int(event.LifeSpan.Minutes())).
+			Msg("Retrieved event for booking")
+	})
+	startTime := time.Now()
+	expiresAt := startTime.Add(event.LifeSpan)
+	logger.LogService(func() {
+		zlog.Logger.Info().Time("time_now", startTime).Time("expires_at", expiresAt).TimeDiff("lifespan", expiresAt, startTime).Msg("log for booking event")
+	})
 	if event.AvailableSeats < req.SeatCount {
 		return nil, models.ErrNotEnoughAvailableSeats
 	}
-	expiresAt := time.Now().Add(event.LifeSpan)
+
 	booking := models.BookingInformation{
 		EventID:     req.EventID,
 		UserID:      userID,

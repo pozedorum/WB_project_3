@@ -25,17 +25,16 @@ CREATE TABLE events (
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, -- ОБЯЗАТЕЛЬНАЯ привязка
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     seat_count INTEGER NOT NULL DEFAULT 1 CHECK (seat_count > 0),
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled', 'expired')),
     booking_code VARCHAR(50) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
-    confirmed_at TIMESTAMP NULL,
-    
-    -- Ограничение: один пользователь может иметь только одну активную бронь на мероприятие
-    UNIQUE(event_id, user_id) WHERE status IN ('pending', 'confirmed')
+    confirmed_at TIMESTAMP NULL
 );
+
+CREATE UNIQUE INDEX idx_bookings_event_user_active ON bookings(event_id, user_id) WHERE status IN ('pending', 'confirmed');
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_bookings_user_id ON bookings(user_id);

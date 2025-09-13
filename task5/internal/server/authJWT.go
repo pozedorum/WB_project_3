@@ -49,9 +49,7 @@ func (serv *EventBookerServer) JWTAuthMiddleware() ginext.HandlerFunc {
 
 // parseJWTToken парсит и валидирует JWT токен
 func (serv *EventBookerServer) parseJWTToken(tokenString string) (int, error) {
-	// Парсим токен с валидацией
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Проверяем метод подписи
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -63,13 +61,11 @@ func (serv *EventBookerServer) parseJWTToken(tokenString string) (int, error) {
 		return 0, fmt.Errorf("invalid token: %w", err)
 	}
 
-	// Проверяем валидность токена
 	if !token.Valid {
 		zlog.Logger.Warn().Msg("Invalid JWT token")
 		return 0, fmt.Errorf("invalid token")
 	}
 
-	// Извлекаем claims
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		zlog.Logger.Error().Msg("Failed to extract claims from JWT token")
@@ -82,31 +78,19 @@ func (serv *EventBookerServer) parseJWTToken(tokenString string) (int, error) {
 		zlog.Logger.Error().Msg("User ID not found in JWT claims")
 		return 0, fmt.Errorf("user ID not found in token")
 	}
-
-	userID := int(userIDFloat)
-
-	// Проверяем expiration
-	exp, ok := claims["exp"].(float64)
-	if !ok {
-		zlog.Logger.Error().Msg("Expiration not found in JWT claims")
-		return 0, fmt.Errorf("expiration not found in token")
-	}
-
-	if time.Now().Unix() > int64(exp) {
-		zlog.Logger.Warn().Int("user_id", userID).Msg("JWT token expired")
-		return 0, fmt.Errorf("token expired")
-	}
-
-	return userID, nil
+	return int(userIDFloat), nil
 }
 
 // generateJWTToken создает JWT токен для пользователя (только для использования в хэндлерах)
 func (serv *EventBookerServer) generateJWTToken(userID int) (string, time.Time, error) {
+	// Вычисляем время истечения
+	expiresAt := time.Now().Add(serv.jwtConfig.TokenLifespan)
+
 	// Создаем claims с данными пользователя
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(serv.jwtConfig.TokenLifespan).Unix(),
-		"iat":     time.Now().Unix(),
+		"exp":     expiresAt.Unix(),  // ✅ UNIX timestamp в секундах
+		"iat":     time.Now().Unix(), // ✅ UNIX timestamp в секундах
 	}
 
 	// Создаем токен с claims
@@ -119,12 +103,10 @@ func (serv *EventBookerServer) generateJWTToken(userID int) (string, time.Time, 
 		return "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	// Вычисляем время истечения
-	expiresAt := time.Now().Add(serv.jwtConfig.TokenLifespan)
-
 	zlog.Logger.Info().
 		Int("user_id", userID).
 		Time("expires_at", expiresAt).
+		Int64("exp_unix", expiresAt.Unix()).
 		Msg("JWT token generated successfully")
 
 	return tokenString, expiresAt, nil

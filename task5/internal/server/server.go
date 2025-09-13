@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/pozedorum/WB_project_3/task5/internal/models"
 	"github.com/pozedorum/WB_project_3/task5/internal/service"
 	"github.com/pozedorum/WB_project_3/task5/pkg/config"
 	"github.com/wb-go/wbf/ginext"
@@ -20,18 +21,19 @@ func (serv *EventBookerServer) SetupRoutes(router *ginext.RouterGroup) {
 	router.Use(ginext.Recovery())
 	router.Use(CORSMiddleware())
 
-	// // Статические файлы
-	// router.Static("/static", "./internal/frontend/static")
+	// Обслуживаем статические файлы фронтенда
+	router.Static("/static", "./internal/frontend/static")
 
-	// // Главная страница
-	// router.GET("/", serv.ServeFrontend)
-	// Public routes (без аутентификации)
+	// Главная страница
+	router.GET("/", serv.ServeFrontend)
+
+	// API routes
 	router.POST("/register", serv.RegisterUser)
 	router.POST("/login", serv.LoginUser)
 	router.GET("/events", serv.GetAllEvents)
 	router.GET("/events/:id", serv.GetEventInformation)
 
-	// Protected routes (требуют аутентификации)
+	// Protected routes
 	protected := router.Group("/")
 	protected.Use(serv.JWTAuthMiddleware())
 	{
@@ -39,6 +41,10 @@ func (serv *EventBookerServer) SetupRoutes(router *ginext.RouterGroup) {
 		protected.POST("/events/:id/book", serv.BookEvent)
 		protected.POST("/events/:id/confirm", serv.ConfirmBooking)
 	}
+}
+
+func (serv *EventBookerServer) ServeFrontend(c *ginext.Context) {
+	c.HTML(models.StatusOK, "index.html", nil)
 }
 
 func CORSMiddleware() ginext.HandlerFunc {

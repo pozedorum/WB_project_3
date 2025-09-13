@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventBooker - Система бронирования</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Уведомления -->
+    <div id="notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; background: #27ae60; color: white; border-radius: 5px; z-index: 1000; max-width: 300px;">
+        <span id="notification-text"></span>
+        <button onclick="hideNotification()" style="margin-left: 10px; background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🎭 EventBooker</h1>
+            <div id="auth-section">
+                <div id="login-form" class="auth-form">
+                    <h3>Вход</h3>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                    <button onclick="login()">Войти</button>
+                    <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+                </div>
+
+                <div id="register-form" class="auth-form" style="display: none;">
+                    <h3>Регистрация</h3>
+                    <input type="text" id="register-name" placeholder="Имя" required>
+                    <input type="email" id="register-email" placeholder="Email" required>
+                    <input type="password" id="register-password" placeholder="Пароль (мин. 6 символов)" required>
+                    <input type="text" id="register-phone" placeholder="Телефон (опционально)">
+                    <button onclick="register()">Зарегистрироваться</button>
+                    <p>Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+                </div>
+
+                <div id="user-info" style="display: none;">
+                    <span id="user-name"></span>
+                    <button onclick="showMyBookings()">Мои бронирования</button>
+                    <button onclick="logout()">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Пользовательская часть -->
+            <section id="user-section">
+                <h2>Доступные мероприятия</h2>
+                <div id="events-list"></div>
+
+                <div id="event-details" style="display: none;">
+                    <h3>Информация о мероприятии</h3>
+                    <div id="event-info"></div>
+                    <div id="booking-form" style="display: none;">
+                        <input type="number" id="seat-count" min="1" placeholder="Количество мест" required>
+                        <button onclick="bookEvent()">Забронировать</button>
+                    </div>
+                </div>
+
+                <div id="my-bookings" style="display: none;">
+                    <h3>Мои бронирования</h3>
+                    <div id="bookings-list"></div>
+                </div>
+            </section>
+
+            <!-- Администраторская часть -->
+            <section id="admin-section" style="display: none;">
+                <h2>Панель организатора</h2>
+                
+                <div class="create-event-form">
+                    <h3>Создать мероприятие</h3>
+                    <input type="text" id="event-name" placeholder="Название мероприятия" required>
+                    <input type="datetime-local" id="event-date" required>
+                    <input type="number" id="event-cost" placeholder="Стоимость" min="0">
+                    <input type="number" id="event-seats" placeholder="Количество мест" min="1" required>
+                    <input type="text" id="event-lifespan" placeholder="Время брони (например, 15m, 1h)" value="15m" required>
+                    <button onclick="createEvent()">Создать мероприятие</button>
+                </div>
+
+                <div id="admin-events">
+                    <h3>Мои мероприятия</h3>
+                    <div id="admin-events-list"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

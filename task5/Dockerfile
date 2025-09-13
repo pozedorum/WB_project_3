@@ -1,4 +1,4 @@
-FROM golang:1.24.4-alpine
+FROM golang:1.25.1-alpine
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN go mod download
 
 # Копируем остальные файлы проекта
 COPY . .
-
+COPY internal/frontend ./internal/frontend
 # Собираем приложение
 RUN go build -o event-booker ./cmd/
 

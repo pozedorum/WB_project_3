@@ -69,6 +69,10 @@ func Load() *Config {
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 		},
+		JWT: JWTConfig{
+			SecretKey:     getEnv("JWT_SECRET_KEY", ""),
+			TokenLifespan: getEnvAsDuration("JWT_TOKEN_LIFESPAN", time.Minute),
+		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
