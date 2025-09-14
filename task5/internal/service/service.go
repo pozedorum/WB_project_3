@@ -181,6 +181,9 @@ func (servs *EventBookerService) BookEvent(ctx context.Context, req *models.Book
 	logger.LogService(func() {
 		zlog.Logger.Info().Time("time_now", startTime).Time("expires_at", expiresAt).TimeDiff("lifespan", expiresAt, startTime).Msg("log for booking event")
 	})
+	if event.CreatedBy == userID {
+		return nil, models.ErrBookingOwnEvent
+	}
 	if event.AvailableSeats < req.SeatCount {
 		return nil, models.ErrNotEnoughAvailableSeats
 	}

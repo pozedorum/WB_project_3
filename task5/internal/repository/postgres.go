@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pozedorum/WB_project_3/task5/internal/models"
+	"github.com/pozedorum/WB_project_3/task5/pkg/logger"
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/zlog"
 )
@@ -29,16 +30,16 @@ func NewEventBookerRepository(db *dbpg.DB) *EventBookerRepository {
 
 func (repo *EventBookerRepository) Close() {
 	if err := repo.db.Master.Close(); err != nil {
-		zlog.Logger.Panic().Msg("Database failed to close")
+		logger.LogRepository(func() { zlog.Logger.Panic().Msg("Database failed to close") })
 	}
 	for _, slave := range repo.db.Slaves {
 		if slave != nil {
 			if err := slave.Close(); err != nil {
-				zlog.Logger.Panic().Msg("Slave database failed to close")
+				logger.LogRepository(func() { zlog.Logger.Panic().Msg("Slave database failed to close") })
 			}
 		}
 	}
-	zlog.Logger.Info().Msg("PostgreSQL connections closed")
+	logger.LogRepository(func() { zlog.Logger.Info().Msg("PostgreSQL connections closed") })
 }
 
 // WithTransaction выполняет функцию в транзакции
@@ -53,7 +54,7 @@ func (repo *EventBookerRepository) WithTransaction(ctx context.Context, fn func(
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to commit transaction")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to commit transaction") })
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
@@ -78,7 +79,7 @@ func (repo *EventBookerRepository) GetUserByID(ctx context.Context, userID int) 
 		if err == sql.ErrNoRows {
 			return nil, models.ErrUserNotFound
 		}
-		zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to get user by ID")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to get user by ID") })
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
@@ -104,7 +105,7 @@ func (repo *EventBookerRepository) GetUserByEmail(ctx context.Context, email str
 		if err == sql.ErrNoRows {
 			return nil, models.ErrUserNotFound
 		}
-		zlog.Logger.Error().Err(err).Str("email", email).Msg("Failed to get user by email")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Str("email", email).Msg("Failed to get user by email") })
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
@@ -125,7 +126,7 @@ func (repo *EventBookerRepository) GetUserHash(ctx context.Context, email string
 	}
 
 	if err := tx.Commit(); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to commit transaction")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to commit transaction") })
 		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return userHash, nil
@@ -145,13 +146,15 @@ func (repo *EventBookerRepository) GetEventByID(ctx context.Context, id int) (*m
 		&res.CreatedBy, &res.CreatedAt, &res.UpdatedAt)
 
 	if err != nil {
-		zlog.Logger.Error().Err(err).Int("id", id).Msg("Failed to get event")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("id", id).Msg("Failed to get event") })
 		return nil, err
 	}
 
 	// Конвертируем минуты обратно в Duration
 	res.LifeSpan = time.Duration(lifespanMinutes) * time.Minute
-	zlog.Logger.Info().Int("lifespan_minutes_from_table", lifespanMinutes).Dur("lifespan_duration", res.LifeSpan).Msg("getEventByID")
+	logger.LogRepository(func() {
+		zlog.Logger.Info().Int("lifespan_minutes_from_table", lifespanMinutes).Dur("lifespan_duration", res.LifeSpan).Msg("getEventByID")
+	})
 	return &res, nil
 }
 
@@ -164,7 +167,7 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 	var events []*models.EventInformation
 	rows, err := repo.db.Master.QueryContext(ctx, query)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to get all events")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to get all events") })
 		return nil, fmt.Errorf("failed to get events: %w", err)
 	}
 	defer rows.Close()
@@ -186,7 +189,7 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 			&event.UpdatedAt,
 		)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Msg("Failed to scan event")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to scan event") })
 			continue
 		}
 
@@ -197,7 +200,7 @@ func (repo *EventBookerRepository) GetAllEvents(ctx context.Context) ([]*models.
 	}
 
 	if err := rows.Err(); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Error iterating events")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Error iterating events") })
 		return nil, fmt.Errorf("error iterating events: %w", err)
 	}
 
@@ -219,7 +222,7 @@ func (repo *EventBookerRepository) GetBookingByCode(ctx context.Context, booking
 		if err == sql.ErrNoRows {
 			return nil, models.ErrBookingNotFound // ← ДОБАВИТЬ обработку "не найдено"
 		}
-		zlog.Logger.Error().Err(err).Msg("Failed to get booking")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to get booking") })
 		return nil, err
 	}
 	return &booking, nil
@@ -238,11 +241,11 @@ func (repo *EventBookerRepository) CreateUser(ctx context.Context, n *models.Use
 			n.Phone).
 			Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Str("email", n.Email).Msg("Failed to create user")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Str("email", n.Email).Msg("Failed to create user") })
 			return err
 		}
 
-		zlog.Logger.Info().Str("email", n.Email).Int("user_id", n.ID).Msg("User created successfully")
+		logger.LogRepository(func() { zlog.Logger.Info().Str("email", n.Email).Int("user_id", n.ID).Msg("User created successfully") })
 		return nil
 	})
 }
@@ -266,11 +269,13 @@ func (repo *EventBookerRepository) CreateEvent(ctx context.Context, n *models.Ev
 		).Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
 
 		if err != nil {
-			zlog.Logger.Error().Err(err).Str("event_name", n.Name).Msg("Failed to create event in database")
+			logger.LogRepository(func() {
+				zlog.Logger.Error().Err(err).Str("event_name", n.Name).Msg("Failed to create event in database")
+			})
 			return err
 		}
 
-		zlog.Logger.Info().Int("id", n.ID).Str("event_name", n.Name).Msg("Event created in database")
+		logger.LogRepository(func() { zlog.Logger.Info().Int("id", n.ID).Str("event_name", n.Name).Msg("Event created in database") })
 		return nil
 	})
 }
@@ -282,16 +287,18 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
 		selectQuery := `SELECT available_seats FROM events WHERE id = $1 FOR UPDATE`
 		err := tx.QueryRowContext(ctx, selectQuery, booking.EventID).Scan(&availableSeats)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Int("event_id", booking.EventID).Msg("Failed to get event seats")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("event_id", booking.EventID).Msg("Failed to get event seats") })
 			return models.ErrEventNotFound
 		}
 
 		// 2. Проверяем достаточно ли мест
 		if availableSeats < booking.SeatCount {
-			zlog.Logger.Warn().Int("event_id", booking.EventID).
-				Int("requested", booking.SeatCount).
-				Int("available", availableSeats).
-				Msg("Not enough seats available")
+			logger.LogRepository(func() {
+				zlog.Logger.Warn().Int("event_id", booking.EventID).
+					Int("requested", booking.SeatCount).
+					Int("available", availableSeats).
+					Msg("Not enough seats available")
+			})
 			return models.ErrNotEnoughAvailableSeats
 		}
 
@@ -300,9 +307,11 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
                             updated_at = NOW() WHERE id = $2`
 		_, err = tx.ExecContext(ctx, updateSeatsQuery, booking.SeatCount, booking.EventID)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Int("event_id", booking.EventID).
-				Int("seat_count", booking.SeatCount).
-				Msg("Failed to update available seats")
+			logger.LogRepository(func() {
+				zlog.Logger.Error().Err(err).Int("event_id", booking.EventID).
+					Int("seat_count", booking.SeatCount).
+					Msg("Failed to update available seats")
+			})
 			return err
 		}
 
@@ -322,18 +331,22 @@ func (repo *EventBookerRepository) CreateBookingWithSeatUpdate(ctx context.Conte
 		).Scan(&booking.ID, &booking.CreatedAt)
 
 		if err != nil {
-			zlog.Logger.Error().Err(err).
-				Int("user_id", booking.UserID).
-				Int("event_id", booking.EventID).
-				Msg("Failed to create booking")
+			logger.LogRepository(func() {
+				zlog.Logger.Error().Err(err).
+					Int("user_id", booking.UserID).
+					Int("event_id", booking.EventID).
+					Msg("Failed to create booking")
+			})
 			return err
 		}
 
-		zlog.Logger.Info().
-			Int("id", booking.ID).
-			Int("user_id", booking.UserID).
-			Int("event_id", booking.EventID).
-			Msg("Booking created successfully with seat update")
+		logger.LogRepository(func() {
+			zlog.Logger.Info().
+				Int("id", booking.ID).
+				Int("user_id", booking.UserID).
+				Int("event_id", booking.EventID).
+				Msg("Booking created successfully with seat update")
+		})
 
 		return nil
 	})
@@ -356,10 +369,12 @@ func (repo *EventBookerRepository) ConfirmBooking(ctx context.Context, bookingCo
 		err := tx.QueryRowContext(ctx, selectQuery, bookingCode).Scan(&bookingID, &eventID, &seatCount)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				zlog.Logger.Warn().Str("booking_code", bookingCode).Msg("Booking not found or already processed")
+				logger.LogRepository(func() {
+					zlog.Logger.Warn().Str("booking_code", bookingCode).Msg("Booking not found or already processed")
+				})
 				return models.ErrBookingNotFound
 			}
-			zlog.Logger.Error().Err(err).Str("booking_code", bookingCode).Msg("Failed to find booking")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Str("booking_code", bookingCode).Msg("Failed to find booking") })
 			return err
 		}
 
@@ -368,12 +383,14 @@ func (repo *EventBookerRepository) ConfirmBooking(ctx context.Context, bookingCo
                               WHERE id = $1`
 		_, err = tx.ExecContext(ctx, updateBookingQuery, bookingID)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to confirm booking")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to confirm booking") })
 			return err
 		}
 
 		// 3. Места уже были заняты при создании брони, поэтому не обновляем available_seats
-		zlog.Logger.Info().Str("booking_code", bookingCode).Int("booking_id", bookingID).Msg("Booking confirmed successfully")
+		logger.LogRepository(func() {
+			zlog.Logger.Info().Str("booking_code", bookingCode).Int("booking_id", bookingID).Msg("Booking confirmed successfully")
+		})
 		return nil
 	})
 }
@@ -387,7 +404,7 @@ func (repo *EventBookerRepository) GetExpiredBookings(ctx context.Context) ([]*m
 	var bookings []*models.BookingInformation
 	rows, err := repo.db.Master.QueryContext(ctx, selectQuery)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to get expired bookings")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to get expired bookings") })
 		return nil, err
 	}
 	defer rows.Close()
@@ -400,20 +417,20 @@ func (repo *EventBookerRepository) GetExpiredBookings(ctx context.Context) ([]*m
 			&booking.ExpiresAt, &booking.ConfirmedAt,
 		)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Msg("Failed to scan expired booking")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Failed to scan expired booking") })
 			continue
 		}
 		bookings = append(bookings, &booking)
 	}
 
 	if err := rows.Err(); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Error iterating expired bookings")
+		logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("Error iterating expired bookings") })
 		return nil, err
 	}
 	if len(bookings) != 0 {
-		zlog.Logger.Info().Int("count", len(bookings)).Msg("Found expired bookings")
+		logger.LogRepository(func() { zlog.Logger.Info().Int("count", len(bookings)).Msg("Found expired bookings") })
 	} else {
-		zlog.Logger.Info().Msg("No bookings expired")
+		logger.LogRepository(func() { zlog.Logger.Info().Msg("No bookings expired") })
 	}
 
 	return bookings, nil
@@ -428,7 +445,7 @@ func (repo *EventBookerRepository) CancelBooking(ctx context.Context, bookingID 
 		selectQuery := `SELECT event_id, seat_count, status FROM bookings WHERE id = $1 FOR UPDATE`
 		err := tx.QueryRowContext(ctx, selectQuery, bookingID).Scan(&eventID, &seatCount, &status)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to find booking")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to find booking") })
 			return err
 		}
 
@@ -436,7 +453,7 @@ func (repo *EventBookerRepository) CancelBooking(ctx context.Context, bookingID 
 		updateBookingQuery := `UPDATE bookings SET status = 'cancelled' WHERE id = $1`
 		_, err = tx.ExecContext(ctx, updateBookingQuery, bookingID)
 		if err != nil {
-			zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to cancel booking")
+			logger.LogRepository(func() { zlog.Logger.Error().Err(err).Int("booking_id", bookingID).Msg("Failed to cancel booking") })
 			return err
 		}
 
@@ -446,12 +463,16 @@ func (repo *EventBookerRepository) CancelBooking(ctx context.Context, bookingID 
                                 updated_at = NOW() WHERE id = $2`
 			_, err = tx.ExecContext(ctx, updateSeatsQuery, seatCount, eventID)
 			if err != nil {
-				zlog.Logger.Error().Err(err).Int("event_id", eventID).Int("seats", seatCount).Msg("Failed to free seats")
+				logger.LogRepository(func() {
+					zlog.Logger.Error().Err(err).Int("event_id", eventID).Int("seats", seatCount).Msg("Failed to free seats")
+				})
 				return err
 			}
 		}
 
-		zlog.Logger.Info().Int("booking_id", bookingID).Int("event_id", eventID).Msg("Booking cancelled successfully")
+		logger.LogRepository(func() {
+			zlog.Logger.Info().Int("booking_id", bookingID).Int("event_id", eventID).Msg("Booking cancelled successfully")
+		})
 		return nil
 	})
 }

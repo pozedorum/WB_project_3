@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pozedorum/WB_project_3/task5/pkg/logger"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/zlog"
 )
@@ -57,25 +58,25 @@ func (serv *EventBookerServer) parseJWTToken(tokenString string) (int, error) {
 	})
 
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to parse JWT token")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to parse JWT token") })
 		return 0, fmt.Errorf("invalid token: %w", err)
 	}
 
 	if !token.Valid {
-		zlog.Logger.Warn().Msg("Invalid JWT token")
+		logger.LogServer(func() { zlog.Logger.Warn().Msg("Invalid JWT token") })
 		return 0, fmt.Errorf("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		zlog.Logger.Error().Msg("Failed to extract claims from JWT token")
+		logger.LogServer(func() { zlog.Logger.Error().Msg("Failed to extract claims from JWT token") })
 		return 0, fmt.Errorf("invalid token claims")
 	}
 
 	// Извлекаем userID
 	userIDFloat, ok := claims["user_id"].(float64)
 	if !ok {
-		zlog.Logger.Error().Msg("User ID not found in JWT claims")
+		logger.LogServer(func() { zlog.Logger.Error().Msg("User ID not found in JWT claims") })
 		return 0, fmt.Errorf("user ID not found in token")
 	}
 	return int(userIDFloat), nil
@@ -99,15 +100,17 @@ func (serv *EventBookerServer) generateJWTToken(userID int) (string, time.Time, 
 	// Подписываем токен с использованием секретного ключа
 	tokenString, err := token.SignedString([]byte(serv.jwtConfig.SecretKey))
 	if err != nil {
-		zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to sign JWT token")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Int("user_id", userID).Msg("Failed to sign JWT token") })
 		return "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	zlog.Logger.Info().
-		Int("user_id", userID).
-		Time("expires_at", expiresAt).
-		Int64("exp_unix", expiresAt.Unix()).
-		Msg("JWT token generated successfully")
+	logger.LogServer(func() {
+		zlog.Logger.Info().
+			Int("user_id", userID).
+			Time("expires_at", expiresAt).
+			Int64("exp_unix", expiresAt.Unix()).
+			Msg("JWT token generated successfully")
+	})
 
 	return tokenString, expiresAt, nil
 }

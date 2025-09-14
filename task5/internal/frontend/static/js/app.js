@@ -148,13 +148,18 @@ function displayEvents(events) {
     events.forEach(event => {
         const eventCard = document.createElement('div');
         eventCard.className = 'event-card';
+        
+        const canBook = currentUser && currentUser.id !== event.created_by;
+        const isMyEvent = currentUser && currentUser.id === event.created_by;
+        
         eventCard.innerHTML = `
             <h4>${event.name}</h4>
             <p>Дата: ${formatDate(event.date)}</p>
             <p>Стоимость: ${event.cost} руб.</p>
             <p>Свободных мест: ${event.availableSeats || 0}</p>
+            ${isMyEvent ? `<p><small>Организатор: Вы</small></p>` : ''}
             <button onclick="showEventDetails(${event.id})">Подробнее</button>
-            ${currentUser ? `<button onclick="confirmBookingPrompt(${event.id})">Подтвердить бронь</button>` : ''}
+            ${canBook ? `<button onclick="confirmBookingPrompt(${event.id})">Подтвердить бронь</button>` : ''}
         `;
         eventsList.appendChild(eventCard);
     });
@@ -165,18 +170,25 @@ async function showEventDetails(eventId) {
         const event = await apiCall(`/events/${eventId}`);
         const eventInfo = document.getElementById('event-info');
         
+        // Правильно рассчитываем время брони в минутах
+        const bookingTimeMinutes = Math.round(event.life_span / 60);
+        
         eventInfo.innerHTML = `
             <h4>${event.name}</h4>
             <p>Дата: ${formatDate(event.date)}</p>
             <p>Стоимость: ${event.cost} руб.</p>
-            <p>Всего мест: ${event.totalSeats}</p>
-            <p>Свободных мест: ${event.availableSeats}</p>
-            <p>Время брони: ${Math.round(event.lifeSpan / 60000000000)} минут</p>
+            <p>Всего мест: ${event.total_seats}</p>
+            <p>Свободных мест: ${event.available_seats}</p>
+            <p>Время брони: ${bookingTimeMinutes} минут</p>
         `;
 
         document.getElementById('event-details').style.display = 'block';
-        document.getElementById('booking-form').style.display = currentToken ? 'block' : 'none';
         
+        // Проверяем, может ли пользователь бронировать это мероприятие
+        const canBook = currentUser && currentUser.id !== event.created_by;
+        document.getElementById('booking-form').style.display = canBook ? 'block' : 'none';
+        
+        // Сохраняем eventId для использования в bookEvent()
         eventInfo.dataset.eventId = eventId;
     } catch (error) {
         console.error('Error loading event details:', error);
@@ -194,7 +206,9 @@ async function bookEvent() {
         });
 
         alert(`Бронирование создано! Код брони: ${data.booking.booking_code}`);
-        loadEvents(); // Обновляем список событий
+        loadEvents();
+        document.getElementById('booking-form').style.display = 'none';
+        document.getElementById('seat-count').value = '';
     } catch (error) {
         console.error('Error booking event:', error);
     }
@@ -240,10 +254,20 @@ async function createEvent() {
     const seats = document.getElementById('event-seats').value;
     const lifespan = document.getElementById('event-lifespan').value;
 
-    // Правильно форматируем дату
+    // Валидация
+    if (!name || !dateInput || !seats || !lifespan) {
+        showNotification('Заполните все обязательные поля', true);
+        return;
+    }
+
     const date = new Date(dateInput);
-    if (isNaN(date.getTime())) {
-        showNotification('Неверный формат даты', true);
+    if (isNaN(date.getTime()) || date <= new Date()) {
+        showNotification('Дата должна быть в будущем', true);
+        return;
+    }
+
+    if (parseInt(seats) <= 0) {
+        showNotification('Количество мест должно быть положительным числом', true);
         return;
     }
 
@@ -266,15 +290,14 @@ async function createEvent() {
         document.getElementById('event-date').value = '';
         document.getElementById('event-cost').value = '';
         document.getElementById('event-seats').value = '';
-        document.getElementById('event-lifespan').value = '';
+        document.getElementById('event-lifespan').value = '15m';
         
         loadEvents();
         loadAdminEvents();
     } catch (error) {
         console.error('Error creating event:', error);
-    }
 }
-
+}
 // Функция для подтверждения бронирования
 async function confirmBookingPrompt(eventId) {
     const bookingCode = prompt('Введите код бронирования:');
@@ -317,16 +340,6 @@ async function deleteEvent(eventId) {
     }
 }
 
-// Функция для показа моих бронирований
-async function showMyBookings() {
-    try {
-        // Здесь нужно реализовать endpoint для получения бронирований пользователя
-        // Пока просто заглушка
-        alert('Функция показа моих бронирований будет реализована в следующей версии');
-    } catch (error) {
-        console.error('Error loading my bookings:', error);
-    }
-}
 
 // Добавляем кнопку для показа бронирований в интерфейс пользователя
 function showUserInterface() {
@@ -335,15 +348,6 @@ function showUserInterface() {
     document.getElementById('user-info').style.display = 'block';
     document.getElementById('user-name').textContent = currentUser.name;
 
-    // Добавляем кнопку для показа бронирований
-    const userInfo = document.getElementById('user-info');
-    if (!userInfo.querySelector('#show-bookings-btn')) {
-        const bookingsBtn = document.createElement('button');
-        bookingsBtn.id = 'show-bookings-btn';
-        bookingsBtn.textContent = 'Мои бронирования';
-        bookingsBtn.onclick = showMyBookings;
-        userInfo.appendChild(bookingsBtn);
-    }
 
     loadAdminEvents();
 }
@@ -488,4 +492,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     checkAuthStatus();
     loadEvents();
-});
+})

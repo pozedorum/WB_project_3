@@ -2,8 +2,10 @@ package server
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/pozedorum/WB_project_3/task5/internal/models"
+	"github.com/pozedorum/WB_project_3/task5/pkg/logger"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/zlog"
 )
@@ -11,11 +13,15 @@ import (
 func (serv *EventBookerServer) CreateEvent(c *ginext.Context) {
 	var req models.EventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for create event")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for create event") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
 
+	if req.Date.Before(time.Now()) {
+		c.JSON(models.StatusBadRequest, ginext.H{"error": "Event date must be in the future"})
+		return
+	}
 	// Получаем userID из контекста (предполагается, что middleware JWT добавило его)
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -32,7 +38,7 @@ func (serv *EventBookerServer) CreateEvent(c *ginext.Context) {
 	// Создаем событие
 	event, err := serv.service.CreateEvent(c.Request.Context(), &req, userIDInt)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to create event")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to create event") })
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to create event"})
 		return
 	}
@@ -46,7 +52,7 @@ func (serv *EventBookerServer) CreateEvent(c *ginext.Context) {
 func (serv *EventBookerServer) BookEvent(c *ginext.Context) {
 	var req models.BookingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for book event")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for book event") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
@@ -84,7 +90,7 @@ func (serv *EventBookerServer) BookEvent(c *ginext.Context) {
 		case models.ErrEventNotFound:
 			c.JSON(models.StatusNotFound, ginext.H{"error": "Event not found"})
 		default:
-			zlog.Logger.Error().Err(err).Msg("Failed to book event")
+			logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to book event") })
 			c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to book event"})
 		}
 		return
@@ -99,7 +105,7 @@ func (serv *EventBookerServer) BookEvent(c *ginext.Context) {
 func (serv *EventBookerServer) ConfirmBooking(c *ginext.Context) {
 	var req models.ConfirmBookingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for confirm booking")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for confirm booking") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
@@ -124,7 +130,7 @@ func (serv *EventBookerServer) ConfirmBooking(c *ginext.Context) {
 		case models.ErrBookingNotFound:
 			c.JSON(models.StatusNotFound, ginext.H{"error": "Booking not found"})
 		default:
-			zlog.Logger.Error().Err(err).Msg("Failed to confirm booking")
+			logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to confirm booking") })
 			c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to confirm booking"})
 		}
 		return
@@ -145,7 +151,7 @@ func (serv *EventBookerServer) GetEventInformation(c *ginext.Context) {
 		case models.ErrEventNotFound:
 			c.JSON(models.StatusNotFound, ginext.H{"error": "Event not found"})
 		default:
-			zlog.Logger.Error().Err(err).Msg("Failed to get event information")
+			logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to get event information") })
 			c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to get event information"})
 		}
 		return
@@ -159,7 +165,7 @@ func (serv *EventBookerServer) GetEventInformation(c *ginext.Context) {
 func (serv *EventBookerServer) GetAllEvents(c *ginext.Context) {
 	events, err := serv.service.GetAllEvents(c.Request.Context())
 	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to get all events")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to get all events") })
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to get events"})
 		return
 	}
@@ -173,7 +179,7 @@ func (serv *EventBookerServer) GetAllEvents(c *ginext.Context) {
 func (serv *EventBookerServer) RegisterUser(c *ginext.Context) {
 	var req models.UserRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for user registration")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for user registration") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
@@ -184,7 +190,7 @@ func (serv *EventBookerServer) RegisterUser(c *ginext.Context) {
 		case models.ErrUserAlreadyRegistered:
 			c.JSON(models.StatusBadRequest, ginext.H{"error": "User already registered"})
 		default:
-			zlog.Logger.Error().Err(err).Msg("Failed to register user")
+			logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to register user") })
 			c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to register user"})
 		}
 		return
@@ -199,7 +205,7 @@ func (serv *EventBookerServer) RegisterUser(c *ginext.Context) {
 func (serv *EventBookerServer) LoginUser(c *ginext.Context) {
 	var req models.UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for user login")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for user login") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
@@ -210,7 +216,7 @@ func (serv *EventBookerServer) LoginUser(c *ginext.Context) {
 		case models.ErrUserNotFound, models.ErrWrongPassword:
 			c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid email or password"})
 		default:
-			zlog.Logger.Error().Err(err).Msg("Failed to authenticate user")
+			logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to authenticate user") })
 			c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to authenticate user"})
 		}
 		return
@@ -219,7 +225,7 @@ func (serv *EventBookerServer) LoginUser(c *ginext.Context) {
 	// Генерируем JWT токен
 	token, expiresAt, err := serv.generateJWTToken(user.ID)
 	if err != nil {
-		zlog.Logger.Error().Err(err).Int("user_id", user.ID).Msg("Failed to generate JWT token")
+		logger.LogServer(func() { zlog.Logger.Error().Err(err).Int("user_id", user.ID).Msg("Failed to generate JWT token") })
 		c.JSON(models.StatusInternalServerError, ginext.H{"error": "Failed to generate token"})
 		return
 	}

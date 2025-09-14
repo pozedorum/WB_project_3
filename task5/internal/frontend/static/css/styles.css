@@ -119,6 +119,20 @@ button.danger:hover {
     border-left: 4px solid #27ae60;
 }
 
+.event-card small {
+    color: #666;
+    font-style: italic;
+}
+
+.event-card .owner-badge {
+    background: #3498db;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
 #user-info {
     color: white;
 }

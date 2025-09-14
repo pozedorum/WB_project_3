@@ -9,4 +9,5 @@ var (
 	ErrEventNotFound           = errors.New("event not found")
 	ErrBookingNotFound         = errors.New("booking not found")
 	ErrNotEnoughAvailableSeats = errors.New("not enough seats available")
+	ErrBookingOwnEvent         = errors.New("cannot bool your own event")
 )

@@ -13,6 +13,7 @@ import (
 	"github.com/pozedorum/WB_project_3/task5/internal/server"
 	"github.com/pozedorum/WB_project_3/task5/internal/service"
 	"github.com/pozedorum/WB_project_3/task5/pkg/config"
+	"github.com/pozedorum/WB_project_3/task5/pkg/logger"
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/zlog"
@@ -22,7 +23,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	// Инициализация логгера
 	zlog.Init()
-
+	logger.Init(true, true, true)
 	// Загрузка конфигурации
 	cfg := config.Load()
 
