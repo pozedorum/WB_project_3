@@ -18,6 +18,14 @@ type SaleInformation struct {
 	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
 }
 
+type SaleRequest struct {
+	Amount      decimal.Decimal
+	Type        string
+	Category    string
+	Description string
+	Date        time.Time
+}
+
 type AnalyticsRequest struct {
 	From     time.Time `form:"from" json:"from" validate:"required"`
 	To       time.Time `form:"to" json:"to" validate:"required"`
@@ -35,14 +43,21 @@ type AnalyticsResponse struct {
 	GroupedData  []GroupedDataItem `json:"grouped_data,omitempty"`
 }
 
+type SalesSummaryResponce struct {
+	SumAmount     decimal.Decimal `json:"sum_amount" db:"sum_amount"`
+	ItemsCount    int64           `json:"items_count" db:"items_count"`
+	AverageAmount decimal.Decimal `json:"average_count" db:"average_count"`
+}
+
 type GroupedDataItem struct {
-	Group   string          `json:"group" db:"group"`
-	Total   decimal.Decimal `json:"total" db:"total"`
-	Count   int64           `json:"count" db:"count"`
-	Average decimal.Decimal `json:"average" db:"average"`
-	Median  decimal.Decimal `json:"median,omitempty" db:"median"`
-	Min     decimal.Decimal `json:"min,omitempty" db:"min"`
-	Max     decimal.Decimal `json:"max,omitempty" db:"max"`
+	Group        string          `json:"group" db:"group"`
+	Total        decimal.Decimal `json:"total" db:"total"`
+	Count        int64           `json:"count" db:"count"`
+	Average      decimal.Decimal `json:"average" db:"average"`
+	Median       decimal.Decimal `json:"median,omitempty" db:"median"`
+	Percentile90 decimal.Decimal `json:"percentile_90,omitempty" db:"percentile_90"`
+	Min          decimal.Decimal `json:"min,omitempty" db:"min"`
+	Max          decimal.Decimal `json:"max,omitempty" db:"max"`
 }
 
 type CSVExportRequest struct {

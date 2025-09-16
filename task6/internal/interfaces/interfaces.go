@@ -15,15 +15,14 @@ type SaleRepository interface {
 	FindAll(ctx context.Context, filters map[string]interface{}) ([]models.SaleInformation, error)
 	Update(ctx context.Context, id int64, sale *models.SaleInformation) error
 	Delete(ctx context.Context, id int64) error
-	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
 	ExportToCSV(ctx context.Context, from, to time.Time) ([]byte, error)
 }
 
 type AnalyticsRepository interface {
-	GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, decimal.Decimal, int64, error)
+	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
+	GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponce, error)
 	GetMedian(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
 	GetPercentile90(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
-	GetGroupedData(ctx context.Context, from, to time.Time, groupBy, category, saleType string) ([]models.GroupedDataItem, error)
 }
 
 type SaleService interface {

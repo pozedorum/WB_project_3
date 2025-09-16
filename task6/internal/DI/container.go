@@ -46,7 +46,8 @@ func NewContainer(cfg config.Config) (*Container, error) {
 	// Инициализация репозиториев с ОДНИМ подключением
 	container.SaleRepo = repository.NewSalesTrackerRepository(db)
 	container.AnalyticsRepo = repository.NewAnalyticsTrackerRepository(db)
-
+	container.closers = append(container.closers, container.SaleRepo.(interfaces.Closer))
+	container.closers = append(container.closers, container.AnalyticsRepo.(interfaces.Closer))
 	// Инициализация сервисов
 	container.SaleService = service.New(
 		container.SaleRepo,
