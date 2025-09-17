@@ -15,21 +15,22 @@ type SaleRepository interface {
 	FindAll(ctx context.Context, filters map[string]interface{}) ([]models.SaleInformation, error)
 	Update(ctx context.Context, id int64, sale *models.SaleInformation) error
 	Delete(ctx context.Context, id int64) error
-	ExportToCSV(ctx context.Context, from, to time.Time) ([]byte, error)
 }
 
+// TODO: поменять всё на models.AnalyticsRequest
 type AnalyticsRepository interface {
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
-	GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponce, error)
+	GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponse, error)
 	GetMedian(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
 	GetPercentile90(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
+	ExportToCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error)
 }
 
 type SaleService interface {
-	CreateSale(ctx context.Context, sale *models.SaleInformation) error
+	CreateSale(ctx context.Context, sale *models.SaleRequest) (*models.SaleInformation, error)
 	GetSaleByID(ctx context.Context, id int64) (*models.SaleInformation, error)
 	GetAllSales(ctx context.Context, filters map[string]interface{}) ([]models.SaleInformation, error)
-	UpdateSale(ctx context.Context, id int64, sale *models.SaleInformation) error
+	UpdateSale(ctx context.Context, id int64, sale *models.SaleRequest) (*models.SaleInformation, error)
 	DeleteSale(ctx context.Context, id int64) error
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
 	ExportCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error)

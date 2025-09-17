@@ -45,9 +45,9 @@ func (repo *AnalyticsTrackerRepository) Close() {
 	logger.LogRepository(func() { zlog.Logger.Info().Msg("PostgreSQL connections closed") })
 }
 
-func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponce, error) {
+func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponse, error) {
 	query := `SELECT SUM(amount), COUNT(*), AVG(amount)`
-	var result models.SalesSummaryResponce
+	var result models.SalesSummaryResponse
 
 	err := retry.Do(func() error {
 		return repo.buildAndExecuteEasyQuery(ctx, query, from, to, category, saleType).
@@ -57,7 +57,7 @@ func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, fro
 		logger.LogRepository(func() {
 			zlog.Logger.Error().Err(err).Msg("Error in SalesSummary query")
 		})
-		return &models.SalesSummaryResponce{}, err
+		return &models.SalesSummaryResponse{}, err
 	}
 	return &result, nil
 }
@@ -117,6 +117,10 @@ func (repo *AnalyticsTrackerRepository) GetAnalytics(ctx context.Context, req *m
 	}
 
 	return response, nil
+}
+
+func (repo *AnalyticsTrackerRepository) ExportToCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error) {
+	return nil, nil
 }
 
 func (repo *AnalyticsTrackerRepository) executeAnalyticsQuery(ctx context.Context, query string, args []interface{}, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error) {

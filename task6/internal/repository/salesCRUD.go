@@ -223,7 +223,3 @@ func (repo *SalesTrackerRepository) Delete(ctx context.Context, id int64) error 
 		return tx.Commit()
 	}, models.StandartStrategy)
 }
-
-func (repo *SalesTrackerRepository) ExportToCSV(ctx context.Context, from, to time.Time) ([]byte, error) {
-	return nil, nil
-}

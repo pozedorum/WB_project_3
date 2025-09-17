@@ -19,10 +19,10 @@ func New(SaleRepo interfaces.SaleRepository, AnalyticsRepo interfaces.AnalyticsR
 	return &SaleTrackerService{SaleRepo: SaleRepo, AnalyticsRepo: AnalyticsRepo}
 }
 
-func (servs *SaleTrackerService) CreateSale(ctx context.Context, req *models.SaleRequest) error {
+func (servs *SaleTrackerService) CreateSale(ctx context.Context, req *models.SaleRequest) (*models.SaleInformation, error) {
 	// Валидация данных
 	if err := servs.validateSale(req); err != nil {
-		return fmt.Errorf("validation error: %w", err)
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	now := time.Now()
 	sale := &models.SaleInformation{
@@ -37,10 +37,10 @@ func (servs *SaleTrackerService) CreateSale(ctx context.Context, req *models.Sal
 
 	// Сохранение в репозитории
 	if err := servs.SaleRepo.Create(ctx, sale); err != nil {
-		return fmt.Errorf("failed to create sale: %w", err)
+		return nil, fmt.Errorf("failed to create sale: %w", err)
 	}
 
-	return nil
+	return sale, nil
 }
 
 func (servs *SaleTrackerService) GetSaleByID(ctx context.Context, id int64) (*models.SaleInformation, error) {
@@ -68,20 +68,20 @@ func (servs *SaleTrackerService) GetAllSales(ctx context.Context, filters map[st
 	return sales, nil
 }
 
-func (servs *SaleTrackerService) UpdateSale(ctx context.Context, id int64, req *models.SaleRequest) error {
+func (servs *SaleTrackerService) UpdateSale(ctx context.Context, id int64, req *models.SaleRequest) (*models.SaleInformation, error) {
 	if id <= 0 {
-		return fmt.Errorf("invalid ID: must be positive integer")
+		return nil, fmt.Errorf("invalid ID: must be positive integer")
 	}
 
 	// Валидация данных
 	if err := servs.validateSale(req); err != nil {
-		return fmt.Errorf("validation error: %w", err)
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
 	// Проверяем существование записи
 	existingSale, err := servs.SaleRepo.FindByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("sale not found: %w", err)
+		return nil, fmt.Errorf("sale not found: %w", err)
 	}
 	sale := &models.SaleInformation{
 		ID:          id,
@@ -96,10 +96,10 @@ func (servs *SaleTrackerService) UpdateSale(ctx context.Context, id int64, req *
 
 	// Обновление в репозитории
 	if err := servs.SaleRepo.Update(ctx, id, sale); err != nil {
-		return fmt.Errorf("failed to update sale: %w", err)
+		return nil, fmt.Errorf("failed to update sale: %w", err)
 	}
 
-	return nil
+	return sale, nil
 }
 
 func (servs *SaleTrackerService) DeleteSale(ctx context.Context, id int64) error {
@@ -137,7 +137,7 @@ func (servs *SaleTrackerService) ExportCSV(ctx context.Context, req *models.CSVE
 
 	// Если группировка не указана, экспортируем сырые данные
 	if req.GroupBy == "" {
-		return servs.SaleRepo.ExportToCSV(ctx, req.From, req.To)
+		return servs.AnalyticsRepo.ExportToCSV(ctx, req)
 	}
 
 	// Если указана группировка, получаем аналитику и преобразуем в CSV
@@ -262,37 +262,8 @@ func (servs *SaleTrackerService) validateAndNormalizeFilters(filters map[string]
 	return result
 }
 
+// TODO: полностью поменять
 func (servs *SaleTrackerService) analyticsToCSV(analytics *models.AnalyticsResponse, groupBy string) ([]byte, error) {
-	// Простая реализация преобразования аналитики в CSV
-	// В реальном приложении можно использовать библиотеку для генерации CSV
-	csvHeader := "Group,Total,Count,Average,Median,Percentile90,Min,Max\n"
-	csvData := csvHeader
 
-	if analytics.GroupedData != nil {
-		for _, item := range analytics.GroupedData {
-			row := fmt.Sprintf("%s,%s,%d,%s,%s,%s,%s,%s\n",
-				item.Group,
-				item.Total.String(),
-				item.Count,
-				item.Average.String(),
-				item.Median.String(),
-				item.Percentile90.String(),
-				item.Min.String(),
-				item.Max.String(),
-			)
-			csvData += row
-		}
-	} else {
-		// Если нет группировки, выводим общую статистику
-		row := fmt.Sprintf("Overall,%s,%d,%s,%s,%s,N/A,N/A\n",
-			analytics.Total.String(),
-			analytics.Count,
-			analytics.Average.String(),
-			analytics.Median.String(),
-			analytics.Percentile90.String(),
-		)
-		csvData += row
-	}
-
-	return []byte(csvData), nil
+	return []byte(nil), nil
 }

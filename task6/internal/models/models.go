@@ -7,6 +7,7 @@ import (
 	"github.com/wb-go/wbf/retry"
 )
 
+// SaleInformation -- cтруктура продажи с полной информацией
 type SaleInformation struct {
 	ID          int64           `json:"id" db:"id"`
 	Amount      decimal.Decimal `json:"amount" db:"amount" validate:"required,gt=0"`
@@ -18,6 +19,7 @@ type SaleInformation struct {
 	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
 }
 
+// SaleRequest -- структура запроса и создании или изменении записи в таблице
 type SaleRequest struct {
 	Amount      decimal.Decimal
 	Type        string
@@ -26,6 +28,7 @@ type SaleRequest struct {
 	Date        time.Time
 }
 
+// AnalyticsRequest -- структура запроса аналитики
 type AnalyticsRequest struct {
 	From     time.Time `form:"from" json:"from" validate:"required"`
 	To       time.Time `form:"to" json:"to" validate:"required"`
@@ -43,7 +46,7 @@ type AnalyticsResponse struct {
 	GroupedData  []GroupedDataItem `json:"grouped_data,omitempty"`
 }
 
-type SalesSummaryResponce struct {
+type SalesSummaryResponse struct {
 	SumAmount     decimal.Decimal `json:"sum_amount" db:"sum_amount"`
 	ItemsCount    int64           `json:"items_count" db:"items_count"`
 	AverageAmount decimal.Decimal `json:"average_count" db:"average_count"`
@@ -52,8 +55,8 @@ type SalesSummaryResponce struct {
 type GroupedDataItem struct {
 	Group        string          `json:"group" db:"group"`
 	Total        decimal.Decimal `json:"total" db:"total"`
-	Count        int64           `json:"count" db:"count"`
 	Average      decimal.Decimal `json:"average" db:"average"`
+	Count        int64           `json:"count" db:"count"`
 	Median       decimal.Decimal `json:"median,omitempty" db:"median"`
 	Percentile90 decimal.Decimal `json:"percentile_90,omitempty" db:"percentile_90"`
 	Min          decimal.Decimal `json:"min,omitempty" db:"min"`
