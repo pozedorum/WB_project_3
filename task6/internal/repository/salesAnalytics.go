@@ -45,12 +45,12 @@ func (repo *AnalyticsTrackerRepository) Close() {
 	logger.LogRepository(func() { zlog.Logger.Info().Msg("PostgreSQL connections closed") })
 }
 
-func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponse, error) {
+func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, req *models.AnalyticsRequest) (*models.SalesSummaryResponse, error) {
 	query := `SELECT SUM(amount), COUNT(*), AVG(amount)`
 	var result models.SalesSummaryResponse
 
 	err := retry.Do(func() error {
-		return repo.buildAndExecuteEasyQuery(ctx, query, from, to, category, saleType).
+		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result.SumAmount, &result.ItemsCount, &result.AverageAmount)
 	}, models.StandartStrategy)
 	if err != nil {
@@ -62,13 +62,13 @@ func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, fro
 	return &result, nil
 }
 
-func (repo *AnalyticsTrackerRepository) GetMedian(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error) {
+func (repo *AnalyticsTrackerRepository) GetMedian(ctx context.Context, req *models.AnalyticsRequest) (decimal.Decimal, error) {
 	query := `SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount)`
 
 	var result decimal.Decimal
 
 	err := retry.Do(func() error {
-		return repo.buildAndExecuteEasyQuery(ctx, query, from, to, category, saleType).
+		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result)
 	}, models.StandartStrategy)
 
@@ -81,13 +81,13 @@ func (repo *AnalyticsTrackerRepository) GetMedian(ctx context.Context, from, to 
 	return result, nil
 }
 
-func (repo *AnalyticsTrackerRepository) GetPercentile90(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error) {
+func (repo *AnalyticsTrackerRepository) GetPercentile90(ctx context.Context, req *models.AnalyticsRequest) (decimal.Decimal, error) {
 	query := `SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY amount)`
 
 	var result decimal.Decimal
 
 	err := retry.Do(func() error {
-		return repo.buildAndExecuteEasyQuery(ctx, query, from, to, category, saleType).
+		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result)
 	}, models.StandartStrategy)
 
@@ -119,7 +119,7 @@ func (repo *AnalyticsTrackerRepository) GetAnalytics(ctx context.Context, req *m
 	return response, nil
 }
 
-func (repo *AnalyticsTrackerRepository) ExportToCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error) {
+func (repo *AnalyticsTrackerRepository) ExportToCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error) {
 	return nil, nil
 }
 

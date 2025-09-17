@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -21,7 +22,7 @@ func New(SaleRepo interfaces.SaleRepository, AnalyticsRepo interfaces.AnalyticsR
 
 func (servs *SaleTrackerService) CreateSale(ctx context.Context, req *models.SaleRequest) (*models.SaleInformation, error) {
 	// Валидация данных
-	if err := servs.validateSale(req); err != nil {
+	if err := validateSaleRequest(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	now := time.Now()
@@ -45,11 +46,14 @@ func (servs *SaleTrackerService) CreateSale(ctx context.Context, req *models.Sal
 
 func (servs *SaleTrackerService) GetSaleByID(ctx context.Context, id int64) (*models.SaleInformation, error) {
 	if id <= 0 {
-		return nil, fmt.Errorf("invalid ID: must be positive integer")
+		return nil, models.ErrNegativeIndex
 	}
 
 	sale, err := servs.SaleRepo.FindByID(ctx, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, models.ErrSaleNotFound
+		}
 		return nil, fmt.Errorf("failed to get sale by ID: %w", err)
 	}
 
@@ -70,11 +74,11 @@ func (servs *SaleTrackerService) GetAllSales(ctx context.Context, filters map[st
 
 func (servs *SaleTrackerService) UpdateSale(ctx context.Context, id int64, req *models.SaleRequest) (*models.SaleInformation, error) {
 	if id <= 0 {
-		return nil, fmt.Errorf("invalid ID: must be positive integer")
+		return nil, models.ErrNegativeIndex
 	}
 
 	// Валидация данных
-	if err := servs.validateSale(req); err != nil {
+	if err := validateSaleRequest(req); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
@@ -104,7 +108,7 @@ func (servs *SaleTrackerService) UpdateSale(ctx context.Context, id int64, req *
 
 func (servs *SaleTrackerService) DeleteSale(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return fmt.Errorf("invalid ID: must be positive integer")
+		return models.ErrNegativeIndex
 	}
 
 	if err := servs.SaleRepo.Delete(ctx, id); err != nil {
@@ -116,7 +120,7 @@ func (servs *SaleTrackerService) DeleteSale(ctx context.Context, id int64) error
 
 func (servs *SaleTrackerService) GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error) {
 	// Валидация запроса
-	if err := servs.validateAnalyticsRequest(req); err != nil {
+	if err := validateAnalyticsRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid analytics request: %w", err)
 	}
 
@@ -129,9 +133,9 @@ func (servs *SaleTrackerService) GetAnalytics(ctx context.Context, req *models.A
 	return analytics, nil
 }
 
-func (servs *SaleTrackerService) ExportCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error) {
+func (servs *SaleTrackerService) ExportCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error) {
 	// Валидация запроса
-	if err := servs.validateCSVExportRequest(req); err != nil {
+	if err := validateAnalyticsRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid CSV export request: %w", err)
 	}
 
@@ -165,68 +169,33 @@ func (servs *SaleTrackerService) ExportCSV(ctx context.Context, req *models.CSVE
 
 // Вспомогательные методы
 
-func (servs *SaleTrackerService) validateSale(sale *models.SaleRequest) error {
-	if sale.Amount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("amount must be positive")
+func validateSaleRequest(req *models.SaleRequest) error {
+	if req.Amount.LessThanOrEqual(decimal.Zero) {
+		return models.ErrNegativeAmount
 	}
-
-	if sale.Type != "income" && sale.Type != "expense" {
-		return fmt.Errorf("type must be 'income' or 'expense'")
+	if req.Type != "income" && req.Type != "expense" {
+		return models.ErrInvalidType
 	}
-
-	if sale.Category == "" {
-		return fmt.Errorf("category is required")
+	if req.Category == "" {
+		return models.ErrEmptyCategory
 	}
-
-	if sale.Date.IsZero() {
-		return fmt.Errorf("date is required")
+	if req.Date.IsZero() {
+		return models.ErrEmptyDate
 	}
-
-	// Проверка, что дата не в будущем
-	if sale.Date.After(time.Now()) {
-		return fmt.Errorf("date cannot be in the future")
+	if req.Date.After(time.Now()) {
+		return models.ErrWrongDate
 	}
-
 	return nil
 }
 
-func (servs *SaleTrackerService) validateAnalyticsRequest(req *models.AnalyticsRequest) error {
-	if req.From.IsZero() {
-		return fmt.Errorf("from date is required")
-	}
-
-	if req.To.IsZero() {
-		return fmt.Errorf("to date is required")
+func validateAnalyticsRequest(req *models.AnalyticsRequest) error {
+	if req.From.IsZero() || req.To.IsZero() {
+		return models.ErrEmptyFromToDate
 	}
 
 	if req.From.After(req.To) {
-		return fmt.Errorf("from date cannot be after to date")
+		return models.ErrWrongTimeRange
 	}
-
-	if req.Type != "" && req.Type != "income" && req.Type != "expense" {
-		return fmt.Errorf("type must be 'income', 'expense', or empty")
-	}
-
-	if req.GroupBy != "" && req.GroupBy != "day" && req.GroupBy != "week" && req.GroupBy != "month" && req.GroupBy != "category" {
-		return fmt.Errorf("group_by must be 'day', 'week', 'month', 'category', or empty")
-	}
-
-	return nil
-}
-
-func (servs *SaleTrackerService) validateCSVExportRequest(req *models.CSVExportRequest) error {
-	if req.From.IsZero() {
-		return fmt.Errorf("from date is required")
-	}
-
-	if req.To.IsZero() {
-		return fmt.Errorf("to date is required")
-	}
-
-	if req.From.After(req.To) {
-		return fmt.Errorf("from date cannot be after to date")
-	}
-
 	if req.Type != "" && req.Type != "income" && req.Type != "expense" {
 		return fmt.Errorf("type must be 'income', 'expense', or empty")
 	}

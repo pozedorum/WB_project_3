@@ -63,14 +63,6 @@ type GroupedDataItem struct {
 	Max          decimal.Decimal `json:"max,omitempty" db:"max"`
 }
 
-type CSVExportRequest struct {
-	From     time.Time `form:"from" json:"from" validate:"required"`
-	To       time.Time `form:"to" json:"to" validate:"required"`
-	Type     string    `form:"type" json:"type"`
-	Category string    `form:"category" json:"category"`
-	GroupBy  string    `form:"group_by" json:"group_by" validate:"oneof=day week month category"`
-}
-
 var StandartStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
 var ConsumerStrategy = retry.Strategy{Attempts: 5, Delay: 2 * time.Second}
 

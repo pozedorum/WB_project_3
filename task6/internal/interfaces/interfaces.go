@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"context"
-	"time"
 
 	"github.com/pozedorum/WB_project_3/task6/internal/models"
 	"github.com/shopspring/decimal"
@@ -20,10 +19,10 @@ type SaleRepository interface {
 // TODO: поменять всё на models.AnalyticsRequest
 type AnalyticsRepository interface {
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
-	GetSalesSummary(ctx context.Context, from, to time.Time, category, saleType string) (*models.SalesSummaryResponse, error)
-	GetMedian(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
-	GetPercentile90(ctx context.Context, from, to time.Time, category, saleType string) (decimal.Decimal, error)
-	ExportToCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error)
+	GetSalesSummary(ctx context.Context, req *models.AnalyticsRequest) (*models.SalesSummaryResponse, error)
+	GetMedian(ctx context.Context, req *models.AnalyticsRequest) (decimal.Decimal, error)
+	GetPercentile90(ctx context.Context, req *models.AnalyticsRequest) (decimal.Decimal, error)
+	ExportToCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error)
 }
 
 type SaleService interface {
@@ -33,7 +32,7 @@ type SaleService interface {
 	UpdateSale(ctx context.Context, id int64, sale *models.SaleRequest) (*models.SaleInformation, error)
 	DeleteSale(ctx context.Context, id int64) error
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
-	ExportCSV(ctx context.Context, req *models.CSVExportRequest) ([]byte, error)
+	ExportCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error)
 }
 
 type SaleServer interface {
