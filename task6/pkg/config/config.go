@@ -12,20 +12,12 @@ import (
 
 type Config struct {
 	Server   ServerConfig
-	JWT      JWTConfig
 	Database DatabaseConfig
-	Email    EmailConfig
-	Telegram TelegramConfig
 	Retry    RetryConfig
 }
 
 type ServerConfig struct {
 	Port string
-}
-
-type JWTConfig struct {
-	SecretKey     string        `json:"secret_key"`
-	TokenLifespan time.Duration `json:"token_lifespan"`
 }
 
 type DatabaseConfig struct {
@@ -40,18 +32,6 @@ type DatabaseConfig struct {
 func (d DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode)
-}
-
-type EmailConfig struct {
-	SMTPHost     string
-	SMTPPort     int
-	SMTPUser     string
-	SMTPPassword string
-	SMTPFrom     string
-}
-
-type TelegramConfig struct {
-	BotToken string
 }
 
 type RetryConfig struct {
@@ -69,10 +49,7 @@ func Load() *Config {
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 		},
-		JWT: JWTConfig{
-			SecretKey:     getEnv("JWT_SECRET_KEY", ""),
-			TokenLifespan: getEnvAsDuration("JWT_TOKEN_LIFESPAN", time.Minute),
-		},
+
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
@@ -80,16 +57,6 @@ func Load() *Config {
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			Name:     getEnv("DB_NAME", "eventbooker"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-		},
-		Email: EmailConfig{
-			SMTPHost:     getEnv("SMTP_HOST", ""),
-			SMTPPort:     getEnvAsInt("SMTP_PORT", 587),
-			SMTPUser:     getEnv("SMTP_USER", ""),
-			SMTPPassword: getEnv("SMTP_PASSWORD", ""),
-			SMTPFrom:     getEnv("SMTP_FROM", ""),
-		},
-		Telegram: TelegramConfig{
-			BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		},
 		Retry: RetryConfig{
 			MaxRetries: getEnvAsInt("MAX_RETRIES", 3),

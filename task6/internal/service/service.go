@@ -130,41 +130,30 @@ func (servs *SaleTrackerService) GetAnalytics(ctx context.Context, req *models.A
 		return nil, fmt.Errorf("failed to get analytics: %w", err)
 	}
 
+	// Если группировки НЕТ, нужно добрать медиану и перцентиль
+	if req.GroupBy == "" {
+		median, err := servs.AnalyticsRepo.GetMedian(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		analytics.Median = median
+
+		percentile90, err := servs.AnalyticsRepo.GetPercentile90(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		analytics.Percentile90 = percentile90
+	}
 	return analytics, nil
 }
 
 func (servs *SaleTrackerService) ExportCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error) {
-	// Валидация запроса
 	if err := validateAnalyticsRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid CSV export request: %w", err)
 	}
 
-	// Если группировка не указана, экспортируем сырые данные
-	if req.GroupBy == "" {
-		return servs.AnalyticsRepo.ExportToCSV(ctx, req)
-	}
-
-	// Если указана группировка, получаем аналитику и преобразуем в CSV
-	analyticsReq := &models.AnalyticsRequest{
-		From:     req.From,
-		To:       req.To,
-		Type:     req.Type,
-		Category: req.Category,
-		GroupBy:  req.GroupBy,
-	}
-
-	analytics, err := servs.GetAnalytics(ctx, analyticsReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get analytics for CSV export: %w", err)
-	}
-
-	// Преобразование аналитики в CSV формат
-	csvData, err := servs.analyticsToCSV(analytics, req.GroupBy)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert analytics to CSV: %w", err)
-	}
-
-	return csvData, nil
+	// ВСЕ данные теперь получаем через AnalyticsRepo
+	return servs.AnalyticsRepo.ExportToCSV(ctx, req)
 }
 
 // Вспомогательные методы
@@ -229,10 +218,4 @@ func (servs *SaleTrackerService) validateAndNormalizeFilters(filters map[string]
 	}
 
 	return result
-}
-
-// TODO: полностью поменять
-func (servs *SaleTrackerService) analyticsToCSV(analytics *models.AnalyticsResponse, groupBy string) ([]byte, error) {
-
-	return []byte(nil), nil
 }

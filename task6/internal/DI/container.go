@@ -24,10 +24,10 @@ type Container struct {
 	SaleService   interfaces.SaleService
 	SaleServer    interfaces.SaleServer
 
-	closers []interfaces.Closer //Список ресурсов, которые нужно закрыть
+	closers []interfaces.Closer // Список ресурсов, которые нужно закрыть
 }
 
-func NewContainer(cfg config.Config) (*Container, error) {
+func NewContainer(cfg *config.Config) (*Container, error) {
 	var container Container
 
 	// Инициализация DB
@@ -75,12 +75,14 @@ func NewContainer(cfg config.Config) (*Container, error) {
 }
 
 func (c *Container) Start() error {
+	fmt.Printf("Server starting on http://localhost%s\n", c.HTTPServer.Addr)
 	return c.HTTPServer.ListenAndServe()
 }
 
 func (c *Container) Shutdown(ctx context.Context) error {
 	var errors []error
 	// Закрываем сначала HTTP сервер, потом БД
+	fmt.Println("Shutting down server...")
 	if c.HTTPServer != nil {
 		if err := c.HTTPServer.Shutdown(ctx); err != nil {
 			errors = append(errors, fmt.Errorf("HTTP server shutdown failed: %w", err))
@@ -96,5 +98,6 @@ func (c *Container) Shutdown(ctx context.Context) error {
 	if len(errors) > 0 {
 		return fmt.Errorf("shutdown completed with errors: %v", errors)
 	}
+	fmt.Println("Shutdown completed successfully")
 	return nil
 }

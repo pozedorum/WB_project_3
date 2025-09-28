@@ -16,7 +16,6 @@ type SaleRepository interface {
 	Delete(ctx context.Context, id int64) error
 }
 
-// TODO: поменять всё на models.AnalyticsRequest
 type AnalyticsRepository interface {
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
 	GetSalesSummary(ctx context.Context, req *models.AnalyticsRequest) (*models.SalesSummaryResponse, error)

@@ -63,8 +63,10 @@ type GroupedDataItem struct {
 	Max          decimal.Decimal `json:"max,omitempty" db:"max"`
 }
 
-var StandartStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
-var ConsumerStrategy = retry.Strategy{Attempts: 5, Delay: 2 * time.Second}
+var (
+	StandardStrategy = retry.Strategy{Attempts: 3, Delay: time.Second}
+	ConsumerStrategy = retry.Strategy{Attempts: 5, Delay: 2 * time.Second}
+)
 
 const (
 	StatusOK                  = 200

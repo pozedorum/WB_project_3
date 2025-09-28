@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -23,6 +21,7 @@ func (serv *SaleTrackerServer) CreateItem(c *ginext.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.LogServer(func() { zlog.Logger.Error().Err(err).Msg("Failed to bind JSON for create event") })
 		c.JSON(models.StatusBadRequest, ginext.H{"error": "Invalid request format: " + err.Error()})
+		return
 	}
 	if saleInfo, err = serv.service.CreateSale(c.Request.Context(), &req); err != nil {
 		c.JSON(http.StatusInternalServerError, ginext.H{
@@ -161,7 +160,7 @@ func (serv *SaleTrackerServer) DeleteItem(c *ginext.Context) {
 	err = serv.service.DeleteSale(c.Request.Context(), int64(id))
 	if err != nil {
 		if err == models.ErrNegativeIndex {
-			c.JSON(http.StatusNotFound, ginext.H{
+			c.JSON(http.StatusBadRequest, ginext.H{
 				"error": err.Error(),
 			})
 			return
@@ -175,7 +174,6 @@ func (serv *SaleTrackerServer) DeleteItem(c *ginext.Context) {
 }
 
 func (serv *SaleTrackerServer) GetAnalytics(c *ginext.Context) {
-
 	// Парсим query parameters
 	req := parseAnalyticsRequest(c)
 	if req == nil { // ошибка уже отправлена пользователю
@@ -194,7 +192,6 @@ func (serv *SaleTrackerServer) GetAnalytics(c *ginext.Context) {
 }
 
 func (serv *SaleTrackerServer) ExportCSV(c *ginext.Context) {
-
 	// Парсим query parameters
 	req := parseAnalyticsRequest(c)
 	if req == nil { // ошибка уже отправлена пользователю
@@ -273,40 +270,4 @@ func parseAnalyticsRequest(c *ginext.Context) *models.AnalyticsRequest {
 		}
 	}
 	return &req
-}
-
-// generateCSVFromSales - вспомогательная функция для генерации CSV из данных продаж
-func generateCSVFromSales(sales []models.SaleInformation) ([]byte, error) {
-	var buf bytes.Buffer
-	writer := csv.NewWriter(&buf)
-
-	// Заголовок CSV
-	headers := []string{"ID", "Amount", "Type", "Category", "Description", "Date", "CreatedAt", "UpdatedAt"}
-	if err := writer.Write(headers); err != nil {
-		return nil, err
-	}
-
-	// Данные
-	for _, sale := range sales {
-		record := []string{
-			strconv.FormatInt(sale.ID, 10),
-			sale.Amount.String(),
-			sale.Type,
-			sale.Category,
-			sale.Description,
-			sale.Date.Format(time.RFC3339),
-			sale.CreatedAt.Format(time.RFC3339),
-			sale.UpdatedAt.Format(time.RFC3339),
-		}
-		if err := writer.Write(record); err != nil {
-			return nil, err
-		}
-	}
-
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }

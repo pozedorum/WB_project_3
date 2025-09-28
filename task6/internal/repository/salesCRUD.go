@@ -147,8 +147,7 @@ func (repo *SalesTrackerRepository) FindAll(ctx context.Context, filters map[str
 			sales = append(sales, sale)
 		}
 		return rows.Err()
-	}, models.StandartStrategy)
-
+	}, models.StandardStrategy)
 	if err != nil {
 		logger.LogRepository(func() {
 			zlog.Logger.Error().Err(err).Msg("Error in FindAll query")
@@ -194,8 +193,9 @@ func (repo *SalesTrackerRepository) Update(ctx context.Context, id int64, sale *
 
 		sale.UpdatedAt = updatedAt
 		return nil
-	}, models.StandartStrategy)
+	}, models.StandardStrategy)
 }
+
 func (repo *SalesTrackerRepository) Delete(ctx context.Context, id int64) error {
 	deleteQuery := `DELETE FROM sales WHERE id = $1`
 
@@ -221,5 +221,5 @@ func (repo *SalesTrackerRepository) Delete(ctx context.Context, id int64) error 
 		}
 
 		return tx.Commit()
-	}, models.StandartStrategy)
+	}, models.StandardStrategy)
 }

@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"database/sql" // нужен только для sql.Row
+	"encoding/csv"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,7 +55,7 @@ func (repo *AnalyticsTrackerRepository) GetSalesSummary(ctx context.Context, req
 	err := retry.Do(func() error {
 		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result.SumAmount, &result.ItemsCount, &result.AverageAmount)
-	}, models.StandartStrategy)
+	}, models.StandardStrategy)
 	if err != nil {
 		logger.LogRepository(func() {
 			zlog.Logger.Error().Err(err).Msg("Error in SalesSummary query")
@@ -70,8 +73,7 @@ func (repo *AnalyticsTrackerRepository) GetMedian(ctx context.Context, req *mode
 	err := retry.Do(func() error {
 		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result)
-	}, models.StandartStrategy)
-
+	}, models.StandardStrategy)
 	if err != nil {
 		logger.LogRepository(func() {
 			zlog.Logger.Error().Err(err).Msg("Error in GetMedian query")
@@ -89,8 +91,7 @@ func (repo *AnalyticsTrackerRepository) GetPercentile90(ctx context.Context, req
 	err := retry.Do(func() error {
 		return repo.buildAndExecuteEasyQuery(ctx, query, req.From, req.To, req.Category, req.Type).
 			Scan(&result)
-	}, models.StandartStrategy)
-
+	}, models.StandardStrategy)
 	if err != nil {
 		logger.LogRepository(func() {
 			zlog.Logger.Error().Err(err).Msg("Error in GetPercentile90 query")
@@ -120,7 +121,61 @@ func (repo *AnalyticsTrackerRepository) GetAnalytics(ctx context.Context, req *m
 }
 
 func (repo *AnalyticsTrackerRepository) ExportToCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error) {
-	return nil, nil
+	// Если группировка не указана - экспортируем сырые данные
+	if req.GroupBy == "" {
+		// Получаем сырые данные
+		query := `
+            SELECT id, amount, type, category, description, date, created_at, updated_at
+            FROM sales WHERE date BETWEEN $1 AND $2
+        `
+		args := []interface{}{req.From, req.To}
+		argIndex := 3
+
+		if req.Category != "" {
+			query += fmt.Sprintf(" AND category = $%d", argIndex)
+			args = append(args, req.Category)
+			argIndex++
+		}
+
+		if req.Type != "" {
+			query += fmt.Sprintf(" AND type = $%d", argIndex)
+			args = append(args, req.Type)
+			argIndex++
+		}
+
+		query += " ORDER BY date DESC"
+
+		var sales []models.SaleInformation
+		rows, err := repo.db.Master.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var sale models.SaleInformation
+			err := rows.Scan(
+				&sale.ID, &sale.Amount, &sale.Type, &sale.Category,
+				&sale.Description, &sale.Date, &sale.CreatedAt, &sale.UpdatedAt,
+			)
+			if err != nil {
+				return nil, err
+			}
+			sales = append(sales, sale)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return salesToCSV(sales)
+	}
+
+	// Если есть группировка - используем аналитику и преобразуем в CSV
+	analytics, err := repo.GetAnalytics(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return analyticsToCSV(analytics, req.GroupBy)
 }
 
 func (repo *AnalyticsTrackerRepository) executeAnalyticsQuery(ctx context.Context, query string, args []interface{}, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error) {
@@ -140,7 +195,7 @@ func (repo *AnalyticsTrackerRepository) executeAnalyticsQuery(ctx context.Contex
 			// Запрос С группировкой - AnalyticsResponse и заполненное поле GroupedDataItem
 			return repo.processGroupedQuery(ctx, query, args, &response)
 		}
-	}, models.StandartStrategy)
+	}, models.StandardStrategy)
 
 	return &response, err
 }
@@ -167,7 +222,6 @@ func (repo *AnalyticsTrackerRepository) buildAndExecuteEasyQuery(ctx context.Con
 		argIndex++
 	}
 	return repo.db.Master.QueryRowContext(ctx, bldr.String(), args...)
-
 }
 
 func (repo *AnalyticsTrackerRepository) processGroupedQuery(ctx context.Context, query string, args []interface{}, response *models.AnalyticsResponse) error {
@@ -283,4 +337,124 @@ func getGroupByClause(groupBy string) (string, error) {
 		return "", fmt.Errorf("invalid group_by value")
 	}
 	return groupByClause, nil
+}
+
+func analyticsToCSV(analytics *models.AnalyticsResponse, groupBy string) ([]byte, error) {
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	if err := writer.Write([]string{"STATISTICS SUMMARY"}); err != nil {
+		return nil, err
+	}
+
+	if err := writer.Write([]string{
+		"Total: " + analytics.Total.String(),
+		"Average: " + analytics.Average.String(),
+		"Count: " + strconv.FormatInt(analytics.Count, 10),
+		"Median: " + analytics.Median.String(),
+		"90th Percentile: " + analytics.Percentile90.String(),
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := writer.Write([]string{}); err != nil {
+		return nil, err
+	}
+
+	headers := make([]string, 0, 8)
+	if groupBy == "category" {
+		headers = append(headers, "Category")
+	} else {
+		headers = append(headers, "Period")
+	}
+	headers = append(headers, []string{"Total", "Average", "Count", "Median", "90th Percentile", "Min", "Max"}...)
+
+	if err := writer.Write(headers); err != nil {
+		return nil, err
+	}
+
+	if len(analytics.GroupedData) == 0 {
+		if err := writer.Write([]string{"No data available for the selected period"}); err != nil {
+			return nil, err
+		}
+	}
+	for _, group := range analytics.GroupedData {
+
+		groupName := formatGroupName(group.Group, groupBy)
+
+		record := []string{
+			groupName,
+			group.Total.String(),
+			group.Average.String(),
+			strconv.FormatInt(group.Count, 10),
+			group.Median.String(),
+			group.Percentile90.String(),
+			group.Min.String(),
+			group.Max.String(),
+		}
+
+		if err := writer.Write(record); err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func salesToCSV(sales []models.SaleInformation) ([]byte, error) {
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Заголовок CSV
+	headers := []string{"ID", "Amount", "Type", "Category", "Description", "Date", "CreatedAt", "UpdatedAt"}
+	if err := writer.Write(headers); err != nil {
+		return nil, err
+	}
+
+	// Данные
+	for _, sale := range sales {
+		record := []string{
+			strconv.FormatInt(sale.ID, 10),
+			sale.Amount.String(),
+			sale.Type,
+			sale.Category,
+			sale.Description,
+			sale.Date.Format("2006-01-02 15:04:05"),
+			sale.CreatedAt.Format("2006-01-02 15:04:05"),
+			sale.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+		if err := writer.Write(record); err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func formatGroupName(groupValue string, groupBy string) string {
+	switch groupBy {
+	case "day":
+		if date, err := time.Parse("2006-01-02", groupValue); err == nil {
+			return date.Format("January 02, 2006")
+		}
+	case "week":
+		return "Week " + groupValue
+	case "month":
+		if monthNum, err := strconv.Atoi(groupValue); err == nil && monthNum >= 1 && monthNum <= 12 {
+			return time.Month(monthNum).String()
+		}
+	case "category":
+		return groupValue
+	}
+	return groupValue
 }
