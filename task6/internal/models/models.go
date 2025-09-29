@@ -21,11 +21,11 @@ type SaleInformation struct {
 
 // SaleRequest -- структура запроса и создании или изменении записи в таблице
 type SaleRequest struct {
-	Amount      decimal.Decimal
-	Type        string
-	Category    string
-	Description string
-	Date        time.Time
+	Amount      decimal.Decimal `form:"amount" json:"amount" binding:"required" validate:"required"`
+	Type        string          `form:"type" json:"type" binding:"required" validate:"required"`
+	Category    string          `form:"category" json:"category" binding:"required" validate:"required"`
+	Description string          `form:"description" json:"description"`
+	Date        time.Time       `form:"date" json:"date" binding:"required" validate:"required"`
 }
 
 // AnalyticsRequest -- структура запроса аналитики
@@ -57,10 +57,10 @@ type GroupedDataItem struct {
 	Total        decimal.Decimal `json:"total" db:"total"`
 	Average      decimal.Decimal `json:"average" db:"average"`
 	Count        int64           `json:"count" db:"count"`
-	Median       decimal.Decimal `json:"median,omitempty" db:"median"`
-	Percentile90 decimal.Decimal `json:"percentile_90,omitempty" db:"percentile_90"`
-	Min          decimal.Decimal `json:"min,omitempty" db:"min"`
-	Max          decimal.Decimal `json:"max,omitempty" db:"max"`
+	Median       decimal.Decimal `json:"median" db:"median"`
+	Percentile90 decimal.Decimal `json:"percentile_90" db:"percentile_90"`
+	Min          decimal.Decimal `json:"min" db:"min"`
+	Max          decimal.Decimal `json:"max" db:"max"`
 }
 
 var (

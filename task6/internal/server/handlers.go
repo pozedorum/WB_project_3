@@ -198,7 +198,7 @@ func (serv *SaleTrackerServer) ExportCSV(c *ginext.Context) {
 		return
 	}
 
-	csvData, err := serv.service.ExportCSV(c.Request.Context(), req)
+	csvData, err := serv.service.ExportToCSV(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ginext.H{
 			"error":   "Failed to export CSV",

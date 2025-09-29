@@ -31,7 +31,7 @@ type SaleService interface {
 	UpdateSale(ctx context.Context, id int64, sale *models.SaleRequest) (*models.SaleInformation, error)
 	DeleteSale(ctx context.Context, id int64) error
 	GetAnalytics(ctx context.Context, req *models.AnalyticsRequest) (*models.AnalyticsResponse, error)
-	ExportCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error)
+	ExportToCSV(ctx context.Context, req *models.AnalyticsRequest) ([]byte, error)
 }
 
 type SaleServer interface {

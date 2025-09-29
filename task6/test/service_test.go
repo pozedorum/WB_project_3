@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -193,5 +194,5 @@ func (suite *ServiceTestSuite) TestGetSaleByID_NotFound() {
 
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
-	assert.Equal(suite.T(), models.ErrSaleNotFound, err)
+	assert.True(suite.T(), errors.Is(err, models.ErrSaleNotFound))
 }
