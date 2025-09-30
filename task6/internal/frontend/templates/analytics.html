@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales tracker - Управление</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/tables.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 Sales Analytics</h1>
+            <nav class="nav">
+                <a href="/" class="nav-link">Управление</a>
+                <a href="/analytics" class="nav-link active">Аналитика</a>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <!-- Фильтры аналитики -->
+            <section class="filters-section">
+                <h2>Фильтры аналитики</h2>
+                <form id="analytics-form" class="analytics-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="from-date">С даты *</label>
+                            <input type="datetime-local" id="from-date" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="to-date">По дату *</label>
+                            <input type="datetime-local" id="to-date" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="analytics-type">Тип</label>
+                            <select id="analytics-type">
+                                <option value="">Все типы</option>
+                                <option value="income">Доходы</option>
+                                <option value="expense">Расходы</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="category-filter">Категория</label>
+                            <input type="text" id="category-filter" placeholder="Все категории">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="group-by">Группировка</label>
+                            <select id="group-by">
+                                <option value="">Без группировки</option>
+                                <option value="day">По дням</option>
+                                <option value="week">По неделям</option>
+                                <option value="month">По месяцам</option>
+                                <option value="category">По категориям</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Загрузить аналитику</button>
+                        <button type="button" class="btn btn-secondary" id="export-csv">Экспорт в CSV</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Результаты аналитики -->
+            <section class="results-section">
+                <h2>Результаты аналитики</h2>
+
+                <div id="analytics-loading" class="loading">Загрузка аналитики...</div>
+
+                <div id="analytics-results" style="display: none;">
+                    <!-- Общая статистика -->
+                    <div class="stats-grid" id="general-stats">
+                        <!-- Статистика будет загружена здесь -->
+                    </div>
+
+                    <!-- Группированные данные -->
+                    <div class="grouped-section" id="grouped-data" style="display: none;">
+                        <h3>Детальная аналитика</h3>
+                        <div class="table-container">
+                            <table id="grouped-table" class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Группа</th>
+                                        <th>Сумма</th>
+                                        <th>Среднее</th>
+                                        <th>Количество</th>
+                                        <th>Медиана</th>
+                                        <th>90-й перцентиль</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="grouped-body">
+                                    <!-- Группированные данные будут здесь -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="no-data" class="empty-state" style="display: none;">
+                    Нет данных для отображения. Измените параметры фильтрации.
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/analytics.js"></script>
+</body>
+
+</html>

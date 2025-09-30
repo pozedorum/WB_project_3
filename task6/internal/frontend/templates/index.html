@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Tracker - Аналитика</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/tables.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>💰 Sales Tracker</h1>
+            <nav class="nav">
+                <a href="/" class="nav-link active">Управление</a>
+                <a href="/analytics" class="nav-link">Аналитика</a>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <!-- Форма добавления/редактирования -->
+            <section class="form-section">
+                <h2 id="form-title">Добавить запись</h2>
+                <form id="sale-form" class="sale-form">
+                    <input type="hidden" id="edit-id">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="amount">Сумма *</label>
+                            <input type="number" id="amount" step="0.01" min="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="type">Тип *</label>
+                            <select id="type" required>
+                                <option value="">Выберите тип</option>
+                                <option value="income">Доход</option>
+                                <option value="expense">Расход</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="category">Категория *</label>
+                            <input type="text" id="category" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date">Дата *</label>
+                            <input type="datetime-local" id="date" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Описание</label>
+                        <textarea id="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="submit-btn">Добавить</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-btn"
+                            style="display: none;">Отмена</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Список записей -->
+            <section class="records-section">
+                <h2>Все записи</h2>
+                <div class="table-container">
+                    <table id="records-table" class="records-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Тип</th>
+                                <th>Категория</th>
+                                <th>Сумма</th>
+                                <th>Описание</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="records-body">
+                            <!-- Записи будут загружены здесь -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="loading" class="loading">Загрузка записей...</div>
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    Нет записей. Добавьте первую запись!
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>
