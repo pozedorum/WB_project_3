@@ -22,9 +22,9 @@ stop:
 logs:
 	docker compose logs -f app
 
-clean: test_clean
+clean:
 	docker compose down -v
 	rm -f sales-tracker
 
 sql_connect:
-	docker exec -it task5-postgres-1 psql -U postgres -d eventbooker
+	docker exec -it task6-postgres-1 psql -U postgres -d salestracker

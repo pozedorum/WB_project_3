@@ -61,7 +61,9 @@ func (suite *IntegrationTestSuite) TearDownSuite() {
 	if suite.container != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		suite.container.Shutdown(ctx)
+		if err := suite.container.Shutdown(ctx); err != nil {
+			zlog.Logger.Fatal().Err(err).Msg("TearDownSuite failed")
+		}
 	}
 }
 

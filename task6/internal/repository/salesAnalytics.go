@@ -253,7 +253,6 @@ func (repo *AnalyticsTrackerRepository) ExportToCSV(ctx context.Context, req *mo
 		if req.Type != "" {
 			query += fmt.Sprintf(" AND type = $%d", argIndex)
 			args = append(args, req.Type)
-			argIndex++
 		}
 
 		query += " ORDER BY date DESC"
@@ -399,7 +398,6 @@ func (repo *AnalyticsTrackerRepository) buildAndExecuteEasyQuery(ctx context.Con
 	if saleType != "" {
 		bldr.WriteString(fmt.Sprintf(" AND type = $%d", argIndex))
 		args = append(args, saleType)
-		argIndex++
 	}
 
 	logger.LogRepository(func() {
@@ -421,7 +419,15 @@ func (repo *AnalyticsTrackerRepository) processGroupedQuery(ctx context.Context,
 	})
 
 	rows, err := repo.db.Master.QueryContext(ctx, query, args...)
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.LogRepository(func() {
+				zlog.Logger.Error().
+					Err(err).
+					Msg("Error closing query rows")
+			})
+		}
+	}()
 	if err != nil {
 		logger.LogRepository(func() {
 			zlog.Logger.Error().
@@ -532,7 +538,6 @@ func buildAnalyticsQuery(req *models.AnalyticsRequest) (string, []interface{}, e
 	if req.Type != "" {
 		builder.WriteString(fmt.Sprintf(" AND type = $%d", argIndex))
 		args = append(args, req.Type)
-		argIndex++
 	}
 
 	// Добавляем GROUP BY и ORDER BY если есть группировка

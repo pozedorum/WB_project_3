@@ -6,7 +6,7 @@
 
 #### **Доход (income):**
 ```bash
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "15000.50",
@@ -19,7 +19,7 @@ curl -X POST http://localhost:8080/items \
 
 #### **Расход (expense):**
 ```bash
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "2500.75",
@@ -33,7 +33,7 @@ curl -X POST http://localhost:8080/items \
 #### **Еще несколько тестовых записей:**
 ```bash
 # Доход - фриланс
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "8000.00",
@@ -44,7 +44,7 @@ curl -X POST http://localhost:8080/items \
   }'
 
 # Расход - транспорт
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "1500.00",
@@ -55,7 +55,7 @@ curl -X POST http://localhost:8080/items \
   }'
 
 # Расход - развлечения
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "3000.00", 
@@ -68,19 +68,19 @@ curl -X POST http://localhost:8080/items \
 
 ### **2. Получение всех записей (GET /items)**
 ```bash
-curl http://localhost:8080/items
+curl http://localhost:8080/api/items
 ```
 
 ### **3. Получение записи по ID (GET /items/{id})**
 ```bash
 # Замените {id} на реальный ID из ответа предыдущего запроса
-curl http://localhost:8080/items/1
-curl http://localhost:8080/items/2
+curl http://localhost:8080/api/items/1
+curl http://localhost:8080/api/items/2
 ```
 
 ### **4. Обновление записи (PUT /items/{id})**
 ```bash
-curl -X PUT http://localhost:8080/items/1 \
+curl -X PUT http://localhost:8080/api/items/1 \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "16000.00",
@@ -93,70 +93,70 @@ curl -X PUT http://localhost:8080/items/1 \
 
 ### **5. Удаление записи (DELETE /items/{id})**
 ```bash
-curl -X DELETE http://localhost:8080/items/3
+curl -X DELETE http://localhost:8080/api/items/3
 ```
 
 ## **📊 Запросы для тестирования аналитики (GET /analytics)**
 
 ### **1. Базовая аналитика за период:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z"
 ```
 
 ### **2. Аналитика только по доходам:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=income"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=income"
 ```
 
 ### **3. Аналитика только по расходам:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=expense"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=expense"
 ```
 
 ### **4. Аналитика по конкретной категории:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&category=food"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&category=food"
 ```
 
 ### **5. Аналитика с группировкой по дням:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=day"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=day"
 ```
 
 ### **6. Аналитика с группировкой по неделям:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=week"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=week"
 ```
 
 ### **7. Аналитика с группировкой по месяцам:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=month"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=month"
 ```
 
 ### **8. Аналитика с группировкой по категориям:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=category"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=category"
 ```
 
 ### **9. Комбинированная аналитика:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=expense&group_by=category"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&type=expense&group_by=category"
 ```
 
 ## **📁 Экспорт в CSV (GET /csv)**
 ```bash
 # Скачивание CSV файла
-curl http://localhost:8080/csv -o sales_export.csv
+curl http://localhost:8080/api/csv -o sales_export.csv
 
 # Просмотр в терминале
-curl http://localhost:8080/csv
+curl http://localhost:8080/api/csv
 ```
 
 ## **🎯 Тестирование валидации и ошибок**
 
 ### **Неправильный тип операции:**
 ```bash
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "amount": "1000.00",
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8080/items \
 
 ### **Отсутствует обязательное поле:**
 ```bash
-curl -X POST http://localhost:8080/items \
+curl -X POST http://localhost:8080/api/items \
   -H "Content-Type: application/json" \
   -d '{
     "type": "income",
@@ -179,10 +179,10 @@ curl -X POST http://localhost:8080/items \
 
 ### **Неправильная группировка в аналитике:**
 ```bash
-curl "http://localhost:8080/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=invalid_group"
+curl "http://localhost:8080/api/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&group_by=invalid_group"
 ```
 
 ### **Отсутствуют даты в аналитике:**
 ```bash
-curl "http://localhost:8080/analytics"
+curl "http://localhost:8080/api/analytics"
 ```

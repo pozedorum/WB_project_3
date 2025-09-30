@@ -189,7 +189,6 @@ func (repo *SalesTrackerRepository) FindAll(ctx context.Context, filters map[str
 	if limit, ok := filters["limit"].(int); ok && limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", argIndex)
 		args = append(args, limit)
-		argIndex++
 	}
 
 	var sales []models.SaleInformation
@@ -203,7 +202,15 @@ func (repo *SalesTrackerRepository) FindAll(ctx context.Context, filters map[str
 		})
 
 		rows, err := repo.db.Master.QueryContext(ctx, query, args...)
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				logger.LogRepository(func() {
+					zlog.Logger.Error().
+						Err(err).
+						Msg("Error closing query rows")
+				})
+			}
+		}()
 		if err != nil {
 			return err
 		}
@@ -274,8 +281,11 @@ func (repo *SalesTrackerRepository) Update(ctx context.Context, id int64, sale *
 			})
 			return err
 		}
-		defer tx.Rollback()
-
+		defer func() {
+			if err := tx.Rollback(); err != nil {
+				logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("func repo.Update failed transaction") })
+			}
+		}()
 		// Выполняем обновление
 		var updatedAt time.Time
 		err = tx.QueryRowContext(ctx, updateQuery,
@@ -334,7 +344,11 @@ func (repo *SalesTrackerRepository) Delete(ctx context.Context, id int64) error 
 			})
 			return err
 		}
-		defer tx.Rollback()
+		defer func() {
+			if err := tx.Rollback(); err != nil {
+				logger.LogRepository(func() { zlog.Logger.Error().Err(err).Msg("func repo.Delete failed transaction") })
+			}
+		}()
 
 		result, err := tx.ExecContext(ctx, deleteQuery, id)
 		if err != nil {

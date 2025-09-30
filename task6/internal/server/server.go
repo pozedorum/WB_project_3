@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/pozedorum/WB_project_3/task6/internal/interfaces"
 	"github.com/pozedorum/WB_project_3/task6/internal/models"
 	"github.com/wb-go/wbf/ginext"
@@ -20,25 +22,34 @@ func (serv *SaleTrackerServer) SetupRoutes(router *ginext.Engine, apiRouter *gin
 	apiRouter.Use(CORSMiddleware())
 
 	// Обслуживаем статические файлы фронтенда и загружаем страницы
-	apiRouter.Static("/static", "./internal/frontend/static")
+	apiRouter.Static("/static", "internal/frontend/static")
 	router.LoadHTMLGlob("internal/frontend/templates/*.html")
-	// Главная страница
+
+	// Страницы
 	apiRouter.GET("/", serv.ServeFrontend)
+	apiRouter.GET("/analytics", serv.ServeAnalytics) // Страница аналитики
 
-	// API routes
-	apiRouter.POST("/items", serv.CreateItem)
-	apiRouter.GET("/items", serv.GetItems)
-	apiRouter.GET("/items/:id", serv.GetItemByID)
-	apiRouter.PUT("/items/:id", serv.UpdateItem)
-	apiRouter.DELETE("/items/:id", serv.DeleteItem)
-
-	apiRouter.GET("/analytics", serv.GetAnalytics)
-	apiRouter.GET("/csv", serv.ExportCSV)
-
+	// API routes с префиксом /api
+	api := apiRouter.Group("/api")
+	{
+		api.POST("/items", serv.CreateItem)
+		api.GET("/items", serv.GetItems)
+		api.GET("/items/:id", serv.GetItemByID)
+		api.PUT("/items/:id", serv.UpdateItem)
+		api.DELETE("/items/:id", serv.DeleteItem)
+		api.GET("/analytics", serv.GetAnalytics) // API: /api/analytics
+		api.GET("/csv", serv.ExportCSV)          // API: /api/csv
+	}
 }
 
 func (serv *SaleTrackerServer) ServeFrontend(c *ginext.Context) {
 	c.HTML(models.StatusOK, "index.html", nil)
+}
+
+func (s *SaleTrackerServer) ServeAnalytics(c *ginext.Context) {
+	c.HTML(http.StatusOK, "analytics.html", ginext.H{
+		"title": "Sales Analytics",
+	})
 }
 
 func CORSMiddleware() ginext.HandlerFunc {
