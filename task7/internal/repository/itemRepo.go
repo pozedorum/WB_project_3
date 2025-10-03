@@ -15,7 +15,7 @@ type ItemRepository struct {
 	db *dbpg.DB
 }
 
-func NewItemRepository(db *dbpg.DB) *ItemRepository {
+func New(db *dbpg.DB) *ItemRepository {
 	logger.LogRepository(func() {
 		zlog.Logger.Info().Msg("Creating new ItemRepository instance")
 	})
@@ -189,6 +189,14 @@ func (repo *ItemRepository) Update(ctx context.Context, id int64, item *models.I
 		item.Name, item.Price, id,
 	).Scan(&item.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.LogRepository(func() {
+				zlog.Logger.Warn().
+					Int64("id", id).
+					Msg("No rows affected - item not found")
+			})
+			return sql.ErrNoRows // Запись не найдена
+		}
 		logger.LogRepository(func() {
 			zlog.Logger.Error().
 				Err(err).
@@ -373,4 +381,4 @@ func (repo *ItemRepository) GetAllHistory(ctx context.Context, filters map[strin
 	return history, nil
 }
 
-//var _ interfaces.ItemRepository = (*ItemRepository)(nil)
+// var _ interfaces.ItemRepository = (*ItemRepository)(nil)

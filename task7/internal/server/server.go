@@ -10,10 +10,10 @@ import (
 
 type WarehouseServer struct {
 	jwtConfig JWTConfig
-	service   interfaces.ItemService
+	service   interfaces.Service
 }
 
-func New(service interfaces.ItemService) *WarehouseServer {
+func New(service interfaces.Service) *WarehouseServer {
 	return &WarehouseServer{service: service}
 }
 
@@ -84,4 +84,4 @@ func CORSMiddleware() ginext.HandlerFunc {
 	}
 }
 
-var _ interfaces.WarehouseServer = (*WarehouseServer)(nil)
+var _ interfaces.Server = (*WarehouseServer)(nil)
