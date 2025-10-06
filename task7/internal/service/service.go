@@ -181,10 +181,7 @@ func (servs *WarehouseService) UpdateItem(ctx context.Context, id int64, req *mo
 }
 
 func (servs *WarehouseService) DeleteItem(ctx context.Context, id int64, username string, role models.UserRole) error {
-	var (
-		res *models.Item
-		err error
-	)
+	var err error
 	logger.LogService(func() {
 		zlog.Logger.Info().
 			Int64("id", id).
@@ -212,7 +209,7 @@ func (servs *WarehouseService) DeleteItem(ctx context.Context, id int64, usernam
 		return models.ErrInvalidID
 	}
 
-	if err = servs.repo.Delete(ctx, id); err != nil || res == nil {
+	if err = servs.repo.Delete(ctx, id); err != nil {
 		logger.LogService(func() {
 			zlog.Logger.Warn().
 				Err(err).

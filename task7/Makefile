@@ -24,7 +24,7 @@ logs:
 
 clean:
 	docker compose down -v
-	rm -f sales-tracker
+	rm -f warehousecontrol
 
 sql_connect:
 	docker exec -it task6-postgres-1 psql -U postgres -d WarehouseControl

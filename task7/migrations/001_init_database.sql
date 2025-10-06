@@ -10,11 +10,16 @@ CREATE TABLE items (
 
 CREATE TABLE item_history (
     id BIGSERIAL PRIMARY KEY,
-    item_id BIGINT REFERENCES items(id) ON DELETE CASCADE,
+    item_id BIGINT NOT NULL, -- Убрали REFERENCES, оставляем просто BIGINT
     action VARCHAR(20) NOT NULL CHECK (action IN ('CREATE', 'UPDATE', 'DELETE')),
     changed_by VARCHAR(100) NOT NULL,
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Индексы для производительности
+CREATE INDEX idx_item_history_item_id ON item_history(item_id);
+CREATE INDEX idx_item_history_changed_at ON item_history(changed_at);
+CREATE INDEX idx_item_history_changed_by ON item_history(changed_by);
 
 -- Триггерная функция для логирования изменений
 CREATE OR REPLACE FUNCTION log_item_changes()
@@ -39,8 +44,3 @@ CREATE TRIGGER items_history_trigger
     AFTER INSERT OR UPDATE OR DELETE ON items
     FOR EACH ROW
     EXECUTE FUNCTION log_item_changes();
-
--- Индексы для производительности
-CREATE INDEX idx_item_history_item_id ON item_history(item_id);
-CREATE INDEX idx_item_history_changed_at ON item_history(changed_at);
-CREATE INDEX idx_item_history_changed_by ON item_history(changed_by);

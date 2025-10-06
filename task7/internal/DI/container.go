@@ -6,18 +6,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pozedorum/WB_project_3/task6/pkg/config"
 	"github.com/pozedorum/WB_project_3/task7/internal/interfaces"
 	"github.com/pozedorum/WB_project_3/task7/internal/repository"
 	"github.com/pozedorum/WB_project_3/task7/internal/server"
 	"github.com/pozedorum/WB_project_3/task7/internal/service"
+	"github.com/pozedorum/WB_project_3/task7/pkg/config"
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/ginext"
 )
 
 type Container struct {
-	db         *dbpg.DB
-	httpServer *http.Server
+	DB         *dbpg.DB
+	HTTPServer *http.Server
 
 	repo    interfaces.Repository
 	service interfaces.Service
@@ -39,7 +39,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	container.db = db
+	container.DB = db
 
 	// Инициализация репозиториев
 	container.repo = repository.New(db)
@@ -48,7 +48,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	container.service = service.New(container.repo)
 
 	// Инициализация сервера
-	container.server = server.New(container.service)
+	jwtConf := server.NewJWTConfig(cfg.JWT.Secret, cfg.JWT.TokenLifespan)
+	container.server = server.New(container.service, jwtConf)
 
 	// Настройка HTTP сервера
 	router := ginext.New()
@@ -56,7 +57,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	container.server.SetupRoutes(router, apiRouter)
 
 	serverAddr := ":" + cfg.Server.Port
-	container.httpServer = &http.Server{
+	container.HTTPServer = &http.Server{
 		Addr:         serverAddr,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
@@ -68,16 +69,16 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 }
 
 func (c *Container) Start() error {
-	fmt.Printf("Server starting on http://localhost%s\n", c.httpServer.Addr)
-	return c.httpServer.ListenAndServe()
+	fmt.Printf("Server starting on http://localhost%s\n", c.HTTPServer.Addr)
+	return c.HTTPServer.ListenAndServe()
 }
 
 func (c *Container) Shutdown(ctx context.Context) error {
 	var errors []error
-	// Закрываем сначала HTTP сервер, потом БД
+	// Закрываем сначала HTTP сервер, потом 	БД
 	fmt.Println("Shutting down server...")
-	if c.httpServer != nil {
-		if err := c.httpServer.Shutdown(ctx); err != nil {
+	if c.HTTPServer != nil {
+		if err := c.HTTPServer.Shutdown(ctx); err != nil {
 			errors = append(errors, fmt.Errorf("HTTP server shutdown failed: %w", err))
 		}
 	}

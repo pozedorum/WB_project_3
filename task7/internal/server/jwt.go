@@ -14,6 +14,10 @@ type JWTConfig struct {
 	TokenLifespan time.Duration
 }
 
+func NewJWTConfig(secretKey string, tokenLifespan time.Duration) *JWTConfig {
+	return &JWTConfig{SecretKey: secretKey, TokenLifespan: tokenLifespan}
+}
+
 // parseJWTToken парсит и валидирует JWT токен
 func (conf *JWTConfig) ParseJWTToken(tokenString string) (string, models.UserRole, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

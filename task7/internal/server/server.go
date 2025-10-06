@@ -1,20 +1,18 @@
 package server
 
 import (
-	"net/http"
-
 	"github.com/pozedorum/WB_project_3/task7/internal/interfaces"
 	"github.com/pozedorum/WB_project_3/task7/internal/models"
 	"github.com/wb-go/wbf/ginext"
 )
 
 type WarehouseServer struct {
-	jwtConfig JWTConfig
+	jwtConfig *JWTConfig
 	service   interfaces.Service
 }
 
-func New(service interfaces.Service) *WarehouseServer {
-	return &WarehouseServer{service: service}
+func New(service interfaces.Service, jwtConfig *JWTConfig) *WarehouseServer {
+	return &WarehouseServer{service: service, jwtConfig: jwtConfig}
 }
 
 func (serv *WarehouseServer) SetupRoutes(router *ginext.Engine, apiRouter *ginext.RouterGroup) {
@@ -41,10 +39,11 @@ func (serv *WarehouseServer) SetupRoutes(router *ginext.Engine, apiRouter *ginex
 	items.GET("", serv.GetItems)
 	items.GET("/:id", serv.GetItemByID)
 
-	// Только admin и manager могут создавать/изменять/удалять
-	items.POST("", serv.RoleMiddleware(models.RoleAdmin, models.RoleManager), serv.CreateItem)
+	// admin и manager могут изменять
 	items.PUT("/:id", serv.RoleMiddleware(models.RoleAdmin, models.RoleManager), serv.UpdateItem)
-	items.DELETE("/:id", serv.RoleMiddleware(models.RoleAdmin, models.RoleManager), serv.DeleteItem)
+	// Только admin может создавать/удалять
+	items.POST("", serv.RoleMiddleware(models.RoleAdmin), serv.CreateItem)
+	items.DELETE("/:id", serv.RoleMiddleware(models.RoleAdmin), serv.DeleteItem)
 
 	// История изменений
 	history := apiRouter.Group("/history")
@@ -53,19 +52,13 @@ func (serv *WarehouseServer) SetupRoutes(router *ginext.Engine, apiRouter *ginex
 	// Все роли могут смотреть историю конкретного товара
 	history.GET("/item/:id", serv.GetItemHistory)
 
-	// Только admin и auditor могут смотреть всю историю
-	history.GET("", serv.RoleMiddleware(models.RoleAdmin, models.RoleViewer), serv.GetAllHistory)
-	history.GET("/export", serv.RoleMiddleware(models.RoleAdmin, models.RoleViewer), serv.ExportHistory)
+	// Только admin и manager могут смотреть всю историю
+	history.GET("", serv.RoleMiddleware(models.RoleAdmin, models.RoleManager), serv.GetAllHistory)
+	history.GET("/export", serv.RoleMiddleware(models.RoleAdmin, models.RoleManager), serv.ExportHistory)
 }
 
 func (serv *WarehouseServer) ServeFrontend(c *ginext.Context) {
 	c.HTML(models.StatusOK, "index.html", nil)
-}
-
-func (s *WarehouseServer) ServeAnalytics(c *ginext.Context) {
-	c.HTML(http.StatusOK, "analytics.html", ginext.H{
-		"title": "Sales Analytics",
-	})
 }
 
 func CORSMiddleware() ginext.HandlerFunc {
