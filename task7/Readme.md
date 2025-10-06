@@ -26,7 +26,7 @@
 
 ```bash
 git clone <repository-url>
-cd task7
+cd WB_project_3/task7
 ```
 
 ### 2. Настройка окружения
