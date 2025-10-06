@@ -26,7 +26,7 @@
 
 ```bash
 git clone <repository-url>
-cd warehousecontrol
+cd task7
 ```
 
 ### 2. Настройка окружения
@@ -86,7 +86,7 @@ docker compose up --build
 |------|------------------|------------------|-----------------------|------------------|----------------------|
 | **Admin** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Manager** | ✅ | ❌ | ✅ | ❌ | ✅ |
-| **Viewer** | ✅ | ❌ | ❌ | ❌ | ✅s |
+| **Viewer** | ✅ | ❌ | ❌ | ❌ | ✅ |
 
 ## API Endpoints
 
