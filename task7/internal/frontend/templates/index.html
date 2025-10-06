@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Control System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <!-- Уведомления -->
+    <div id="notification"
+        style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; background: #27ae60; color: white; border-radius: 5px; z-index: 1000; max-width: 300px;">
+        <span id="notification-text"></span>
+        <button onclick="hideNotification()"
+            style="margin-left: 10px; background: none; border: none; color: white; font-size: 16px; cursor: pointer;">×</button>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🏭 Warehouse Control System</h1>
+            <div id="auth-section">
+                <div id="login-form" class="auth-form">
+                    <h3>Вход в систему</h3>
+                    <input type="text" id="login-username" placeholder="Имя пользователя" required>
+                    <select id="login-role" required>
+                        <option value="">Выберите роль</option>
+                        <option value="admin">Администратор</option>
+                        <option value="manager">Менеджер</option>
+                        <option value="viewer">Просмотрщик</option>
+                    </select>
+                    <button onclick="login()">Войти</button>
+                </div>
+
+                <div id="user-info" style="display: none;">
+                    <span>Пользователь: <strong id="user-name"></strong></span>
+                    <span>Роль: <strong id="user-role"></strong></span>
+                    <button onclick="logout()">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Секция товаров -->
+            <section id="items-section" style="display: none;">
+                <div class="section-header">
+                    <h2>Управление товарами</h2>
+                    <button id="create-item-btn" onclick="showCreateItemForm()" style="display: none;">+ Добавить
+                        товар</button>
+                </div>
+
+                <!-- Форма создания товара -->
+                <div id="create-item-form" class="form-card" style="display: none;">
+                    <h3>Добавить новый товар</h3>
+                    <input type="text" id="item-name" placeholder="Название товара" required>
+                    <input type="number" id="item-price" placeholder="Цена (в копейках)" min="1" required>
+                    <div class="form-actions">
+                        <button onclick="createItem()">Создать</button>
+                        <button class="secondary" onclick="hideCreateItemForm()">Отмена</button>
+                    </div>
+                </div>
+
+                <!-- Список товаров -->
+                <div id="items-list" class="cards-grid"></div>
+
+                <!-- Детали товара -->
+                <div id="item-details" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <h3>Информация о товаре</h3>
+                        <div id="item-info"></div>
+                        <div class="form-actions">
+                            <button id="update-item-btn" onclick="showUpdateItemForm()"
+                                style="display: none;">Редактировать</button>
+                            <button id="delete-item-btn" class="danger" onclick="deleteItemPrompt()"
+                                style="display: none;">Удалить</button>
+                            <button class="secondary" onclick="hideItemDetails()">Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Форма редактирования товара -->
+                <div id="update-item-form" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <h3>Редактировать товар</h3>
+                        <input type="text" id="update-item-name" placeholder="Название товара" required>
+                        <input type="number" id="update-item-price" placeholder="Цена (в копейках)" min="1" required>
+                        <div class="form-actions">
+                            <button onclick="updateItem()">Сохранить</button>
+                            <button class="secondary" onclick="hideUpdateItemForm()">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Секция истории -->
+            <section id="history-section" style="display: none;">
+                <div class="section-header">
+                    <h2>История изменений</h2>
+                    <div class="filters">
+                        <input type="text" id="filter-changed-by" placeholder="Фильтр по пользователю">
+                        <select id="filter-action">
+                            <option value="">Все действия</option>
+                            <option value="CREATE">Создание</option>
+                            <option value="UPDATE">Изменение</option>
+                            <option value="DELETE">Удаление</option>
+                        </select>
+                        <button onclick="loadHistory()">Применить фильтры</button>
+                    </div>
+                </div>
+
+                <!-- История конкретного товара -->
+                <div id="item-history" class="history-card" style="display: none;">
+                    <h3>История товара #<span id="history-item-id"></span></h3>
+                    <div id="item-history-list"></div>
+                    <button class="secondary" onclick="hideItemHistory()">Закрыть</button>
+                </div>
+
+                <!-- Вся история -->
+                <div id="all-history">
+                    <div id="history-list" class="history-list"></div>
+                </div>
+            </section>
+
+            <!-- Навигация -->
+            <nav id="main-nav" style="display: none;">
+                <button class="nav-btn active" onclick="showSection('items-section')">📦 Товары</button>
+                <button class="nav-btn" onclick="showSection('history-section')">📊 История</button>
+            </nav>
+        </main>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>
