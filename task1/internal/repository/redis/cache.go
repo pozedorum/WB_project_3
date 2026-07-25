@@ -10,6 +10,7 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// NotificationCache предоставляет реализацию кэширования уведомлений на базе Redis.
 type NotificationCache struct {
 	client *redis.Client
 }

@@ -11,10 +11,14 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// NotificationRepository реализует интерфейс Repository и обеспечивает
+// работу с хранилищем уведомлений в PostgreSQL.
 type NotificationRepository struct {
 	db *dbpg.DB
 }
 
+// NewNotificationRepositoryWithDB создает репозиторий уведомлений,
+// инициализируя подключение к PostgreSQL по указанным параметрам.
 func NewNotificationRepositoryWithDB(masterDSN string, slaveDSNs []string, opts *dbpg.Options) (*NotificationRepository, error) {
 	db, err := dbpg.New(masterDSN, slaveDSNs, opts)
 	if err != nil {
@@ -23,6 +27,8 @@ func NewNotificationRepositoryWithDB(masterDSN string, slaveDSNs []string, opts 
 	return NewNotificationRepository(db), nil
 }
 
+// NewNotificationRepository создает экземпляр репозитория уведомлений
+// на основе готового подключения к базе данных.
 func NewNotificationRepository(db *dbpg.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }

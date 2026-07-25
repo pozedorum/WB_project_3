@@ -10,6 +10,7 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// Config объединяет конфигурацию всех компонентов приложения.
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
@@ -20,10 +21,12 @@ type Config struct {
 	Retry    RetryConfig
 }
 
+// ServerConfig содержит параметры HTTP-сервера.
 type ServerConfig struct {
 	Port string
 }
 
+// DatabaseConfig содержит параметры подключения к PostgreSQL.
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -38,6 +41,7 @@ func (d DatabaseConfig) GetDSN() string {
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode)
 }
 
+// RedisConfig содержит параметры подключения к Redis.
 type RedisConfig struct {
 	Host     string
 	Port     string
@@ -45,6 +49,7 @@ type RedisConfig struct {
 	DB       int
 }
 
+// RabbitMQConfig содержит параметры подключения к RabbitMQ.
 type RabbitMQConfig struct {
 	Host     string
 	Port     string
@@ -56,6 +61,7 @@ func (r RabbitMQConfig) GetURL() string {
 	return fmt.Sprintf("amqp://%s:%s@%s:%s/", r.User, r.Password, r.Host, r.Port)
 }
 
+// EmailConfig содержит настройки SMTP-сервера.
 type EmailConfig struct {
 	SMTPHost     string
 	SMTPPort     int
@@ -64,10 +70,12 @@ type EmailConfig struct {
 	SMTPFrom     string
 }
 
+// TelegramConfig содержит настройки Telegram Bot API.
 type TelegramConfig struct {
 	BotToken string
 }
 
+// RetryConfig определяет параметры повторных попыток обработки уведомлений.
 type RetryConfig struct {
 	MaxRetries  int
 	BaseDelay   time.Duration

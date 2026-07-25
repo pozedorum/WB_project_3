@@ -12,6 +12,8 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// RabbitMQAdapter реализует взаимодействие с RabbitMQ:
+// публикацию отложенных сообщений и их получение.
 type RabbitMQAdapter struct {
 	conn         *rabbitmq.Connection
 	channel      *rabbitmq.Channel

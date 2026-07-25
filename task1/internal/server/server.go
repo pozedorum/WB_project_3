@@ -8,10 +8,10 @@ import (
 )
 
 type NotificationServer struct {
-	service *service.NotificationService
+	service service.NotificationService
 }
 
-func New(service *service.NotificationService) *NotificationServer {
+func New(service service.NotificationService) *NotificationServer {
 	zlog.Logger.Info().Msg("Creating notification server")
 	return &NotificationServer{service: service}
 }

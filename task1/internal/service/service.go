@@ -11,20 +11,22 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
-type NotificationService struct {
+// NotificationService реализует бизнес-логику управления уведомлениями:
+// создание, получение, удаление и отправку через очередь.
+type notificationService struct {
 	repo      Repository
 	cache     Cache
 	queue     Queue
 	notifiers map[string]Notifier // map[channel]Notifier
 }
 
-func NewNotificationService(repo Repository, cache Cache, queue Queue, notifiers []Notifier) *NotificationService {
+func NewNotificationService(repo Repository, cache Cache, queue Queue, notifiers []Notifier) NotificationService {
 	notifierMap := make(map[string]Notifier)
 	for _, notifier := range notifiers {
 		notifierMap[notifier.GetChannel()] = notifier
 	}
 
-	return &NotificationService{
+	return &notificationService{
 		repo:      repo,
 		cache:     cache,
 		queue:     queue,
@@ -32,7 +34,7 @@ func NewNotificationService(repo Repository, cache Cache, queue Queue, notifiers
 	}
 }
 
-func (s *NotificationService) Create(ctx context.Context, req *models.CreateNotificationRequest) (*models.Notification, error) {
+func (s *notificationService) Create(ctx context.Context, req *models.CreateNotificationRequest) (*models.Notification, error) {
 	// Валидация
 	if err := s.validateRequest(req); err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func (s *NotificationService) Create(ctx context.Context, req *models.CreateNoti
 	return notification, nil
 }
 
-func (s *NotificationService) GetByID(ctx context.Context, id string) (*models.Notification, error) {
+func (s *notificationService) GetByID(ctx context.Context, id string) (*models.Notification, error) {
 	// Пробуем из кэша
 	if cached, err := s.cache.Get(ctx, id); err == nil && cached != nil {
 		if cached == nil {
@@ -108,7 +110,7 @@ func (s *NotificationService) GetByID(ctx context.Context, id string) (*models.N
 	return notification, nil
 }
 
-func (s *NotificationService) Delete(ctx context.Context, id string) error {
+func (s *notificationService) Delete(ctx context.Context, id string) error {
 	notification, err := s.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get notification: %w", err)
@@ -137,11 +139,11 @@ func (s *NotificationService) Delete(ctx context.Context, id string) error {
 }
 
 // Функция для воркера
-func (s *NotificationService) Consume(ctx context.Context, queueName string) (<-chan []byte, error) {
+func (s *notificationService) Consume(ctx context.Context, queueName string) (<-chan []byte, error) {
 	return s.queue.Consume(ctx, queueName)
 }
 
-func (s *NotificationService) ProcessNotificationData(ctx context.Context, data []byte) error {
+func (s *notificationService) ProcessNotificationData(ctx context.Context, data []byte) error {
 	var notification models.Notification
 	if err := json.Unmarshal(data, &notification); err != nil {
 		return fmt.Errorf("failed to unmarshal notification: %w", err)
@@ -149,7 +151,7 @@ func (s *NotificationService) ProcessNotificationData(ctx context.Context, data 
 	return s.ProcessNotification(ctx, &notification)
 }
 
-func (s *NotificationService) ProcessNotification(ctx context.Context, notification *models.Notification) error {
+func (s *notificationService) ProcessNotification(ctx context.Context, notification *models.Notification) error {
 	zlog.Logger.Info().Str("notification_id", notification.ID).Msg("Processing notification")
 
 	// Проверяем актуальность уведомления
@@ -192,7 +194,7 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, notificat
 }
 
 // Вспомогательные методы
-func (s *NotificationService) validateRequest(req *models.CreateNotificationRequest) error {
+func (s *notificationService) validateRequest(req *models.CreateNotificationRequest) error {
 	if req.UserID == "" {
 		return fmt.Errorf("user_id is required")
 	}
@@ -208,7 +210,7 @@ func (s *NotificationService) validateRequest(req *models.CreateNotificationRequ
 	return nil
 }
 
-func (s *NotificationService) publishToQueue(ctx context.Context, notification *models.Notification) error {
+func (s *notificationService) publishToQueue(ctx context.Context, notification *models.Notification) error {
 	delay := time.Until(notification.SendAt)
 	if delay < 0 {
 		delay = 0
@@ -220,3 +222,5 @@ func (s *NotificationService) publishToQueue(ctx context.Context, notification *
 	}
 	return s.queue.PublishWithDelay(ctx, "notifications", data, delay)
 }
+
+var _ NotificationService = (*notificationService)(nil)

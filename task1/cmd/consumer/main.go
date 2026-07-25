@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	"github.com/pozedorum/WB_project_3/task1/internal/models"
-	"github.com/pozedorum/WB_project_3/task1/pkg/rabbitmq"
+	"github.com/pozedorum/WB_project_3/task1/internal/rabbitmq"
 )
 
 type NotificationWorker struct {

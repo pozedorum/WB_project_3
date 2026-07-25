@@ -6,6 +6,7 @@ import (
 	"github.com/pozedorum/wbf/retry"
 )
 
+// Notification представляет сущность уведомления, хранящуюся в системе.
 type Notification struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
@@ -17,6 +18,7 @@ type Notification struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// CreateNotificationRequest содержит параметры для создания нового уведомления.
 type CreateNotificationRequest struct {
 	UserID  string    `json:"user_id" binding:"required"`
 	Message string    `json:"message" binding:"required"`
@@ -24,6 +26,7 @@ type CreateNotificationRequest struct {
 	SendAt  time.Time `json:"send_at" binding:"required"`
 }
 
+// NotificationResponse используется для возврата информации об уведомлении клиенту API.
 type NotificationResponse struct {
 	ID      string    `json:"id"`
 	Status  string    `json:"status"`

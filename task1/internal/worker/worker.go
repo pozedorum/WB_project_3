@@ -12,14 +12,15 @@ import (
 	"github.com/pozedorum/wbf/zlog"
 )
 
+// Worker обрабатывает сообщения из очереди и инициирует отправку уведомлений.
 type Worker struct {
-	service      *service.NotificationService
+	service      service.NotificationService
 	wg           sync.WaitGroup
 	shutdownChan chan struct{}
 	semaphore    chan struct{}
 }
 
-func NewWorker(service *service.NotificationService) *Worker {
+func NewWorker(service service.NotificationService) *Worker {
 	return &Worker{
 		service:      service,
 		shutdownChan: make(chan struct{}),

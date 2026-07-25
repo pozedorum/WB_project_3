@@ -9,7 +9,7 @@ RUN apk add --no-cache git postgresql-client
 COPY go.mod go.sum ./
 
 # Скачиваем зависимости
-RUN go mod download
+RUN go mod download -x
 
 # Копируем остальные файлы проекта
 COPY . .
